@@ -8,17 +8,18 @@ import { getModelInfo, isContextOverLimits } from "../messages/inject/utils"
 const DEFAULT_PROTECTED_TOOLS = ["task", "skill"]
 const EXCLUDED_TOOLS = new Set(["question", "edit", "write"])
 
-function findLivePartStatus(messages: WithParts[], callID: string): string | undefined {
+function buildLiveStatusMap(messages: WithParts[]): Map<string, string> {
+    const map = new Map<string, string>()
     for (const msg of messages) {
         const parts = Array.isArray(msg.parts) ? msg.parts : []
         for (const part of parts) {
-            if (part.type === "tool" && part.callID === callID) {
+            if (part.type === "tool" && part.callID) {
                 const status = part.state?.status
-                if (typeof status === "string") return status
+                if (typeof status === "string") map.set(part.callID, status)
             }
         }
     }
-    return undefined
+    return map
 }
 
 function resolveTurnsThreshold(
@@ -63,6 +64,7 @@ export function toolCallPruning(
     const unprunedIds = state.toolIdList.filter((id) => !state.prune.tools.has(id))
     if (unprunedIds.length === 0) return
 
+    const liveStatusMap = buildLiveStatusMap(messages)
     const idsToPrune: string[] = []
 
     for (const id of unprunedIds) {
@@ -71,7 +73,7 @@ export function toolCallPruning(
         if (metadata.status !== "completed") continue
         if (EXCLUDED_TOOLS.has(metadata.tool)) continue
 
-        const liveStatus = findLivePartStatus(messages, id)
+        const liveStatus = liveStatusMap.get(id)
         if (liveStatus && liveStatus !== "completed") continue
 
         const turnAge = state.currentTurn - metadata.turn

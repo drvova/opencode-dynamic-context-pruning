@@ -53,6 +53,11 @@ function buildConfig(maxContextLimit: number, minContextLimit = 1): PluginConfig
                 turns: 4,
                 protectedTools: [],
             },
+            toolCallPruning: {
+                enabled: false,
+                turns: 8,
+                protectedTools: [],
+            },
         },
     }
 }

@@ -60,6 +60,11 @@ function buildConfig(permission: "allow" | "ask" | "deny" = "allow"): PluginConf
                 turns: 4,
                 protectedTools: [],
             },
+            toolCallPruning: {
+                enabled: false,
+                turns: 8,
+                protectedTools: [],
+            },
         },
     }
 }

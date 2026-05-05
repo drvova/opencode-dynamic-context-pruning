@@ -56,6 +56,11 @@ function buildConfig(mode: "message" | "range" = "message"): PluginConfig {
                 turns: 4,
                 protectedTools: [],
             },
+            toolCallPruning: {
+                enabled: false,
+                turns: 8,
+                protectedTools: [],
+            },
         },
     }
 }
