@@ -2,8 +2,8 @@ import type { PluginConfig } from "../config"
 import type { Logger } from "../logger"
 import { resolveToolInfo } from "../protected-patterns"
 import type { SessionState, WithParts } from "../state"
-import { getTotalToolTokens } from "../token-counting"
 import { getModelInfo, isContextOverLimits } from "../messages/inject/utils"
+import { markToolIdsForPruning } from "./prune-utils"
 
 const DEFAULT_PROTECTED_TOOLS = ["task", "skill"]
 const EXCLUDED_TOOLS = new Set(["question", "edit", "write"])
@@ -42,6 +42,34 @@ function resolveTurnsThreshold(
     return baseThreshold
 }
 
+function collectPrunableToolIds(
+    state: SessionState,
+    unprunedIds: string[],
+    protectedTools: string[],
+    protectedFilePatterns: string[],
+    liveStatusMap: Map<string, string>,
+    turnThreshold: number,
+): string[] {
+    const idsToPrune: string[] = []
+
+    for (const id of unprunedIds) {
+        const metadata = resolveToolInfo(state, id, protectedTools, protectedFilePatterns)
+        if (!metadata) continue
+        if (metadata.status !== "completed") continue
+        if (EXCLUDED_TOOLS.has(metadata.tool)) continue
+
+        const liveStatus = liveStatusMap.get(id)
+        if (liveStatus && liveStatus !== "completed") continue
+
+        const turnAge = state.currentTurn - metadata.turn
+        if (turnAge >= turnThreshold) {
+            idsToPrune.push(id)
+        }
+    }
+
+    return idsToPrune
+}
+
 export function toolCallPruning(
     state: SessionState,
     logger: Logger,
@@ -65,32 +93,19 @@ export function toolCallPruning(
     if (unprunedIds.length === 0) return
 
     const liveStatusMap = buildLiveStatusMap(messages)
-    const idsToPrune: string[] = []
-
-    for (const id of unprunedIds) {
-        const metadata = resolveToolInfo(state, id, protectedTools, config.protectedFilePatterns)
-        if (!metadata) continue
-        if (metadata.status !== "completed") continue
-        if (EXCLUDED_TOOLS.has(metadata.tool)) continue
-
-        const liveStatus = liveStatusMap.get(id)
-        if (liveStatus && liveStatus !== "completed") continue
-
-        const turnAge = state.currentTurn - metadata.turn
-        if (turnAge >= turnThreshold) {
-            idsToPrune.push(id)
-        }
-    }
-
-    if (idsToPrune.length === 0) return
-
-    state.stats.totalPruneTokens += getTotalToolTokens(state, idsToPrune)
-    for (const id of idsToPrune) {
-        const entry = state.toolParameters.get(id)
-        state.prune.tools.set(id, entry?.tokenCount ?? 0)
-    }
-
-    logger.debug(
-        `tool-call-pruning: marked ${idsToPrune.length} tool calls (older than ${turnThreshold} turns)`,
+    const idsToPrune = collectPrunableToolIds(
+        state,
+        unprunedIds,
+        protectedTools,
+        config.protectedFilePatterns,
+        liveStatusMap,
+        turnThreshold,
     )
+
+    const count = markToolIdsForPruning(state, idsToPrune)
+    if (count > 0) {
+        logger.debug(
+            `tool-call-pruning: marked ${count} tool calls (older than ${turnThreshold} turns)`,
+        )
+    }
 }

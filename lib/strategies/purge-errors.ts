@@ -2,11 +2,9 @@ import { PluginConfig } from "../config"
 import { Logger } from "../logger"
 import type { SessionState, WithParts } from "../state"
 import {
-    getFilePathsFromParameters,
-    isFilePathProtected,
-    isToolNameProtected,
+    resolveToolInfo,
 } from "../protected-patterns"
-import { getTotalToolTokens } from "../token-utils"
+import { markToolIdsForPruning } from "./prune-utils"
 
 /**
  * Purge Errors strategy - prunes tool inputs for tools that errored
@@ -16,73 +14,66 @@ import { getTotalToolTokens } from "../token-utils"
  *
  * Modifies the session state in place to add pruned tool call IDs.
  */
+const collectStaleErrorToolIds = (
+    state: SessionState,
+    unprunedIds: string[],
+    config: PluginConfig,
+    turnThreshold: number,
+): string[] => {
+    const protectedTools = config.strategies.purgeErrors.protectedTools
+    const staleIds: string[] = []
+
+    for (const id of unprunedIds) {
+        const metadata = resolveToolInfo(
+            state,
+            id,
+            protectedTools,
+            config.protectedFilePatterns,
+        )
+        if (!metadata) continue
+
+        if (metadata.status !== "error") continue
+
+        const turnAge = state.currentTurn - metadata.turn
+        if (turnAge >= turnThreshold) {
+            staleIds.push(id)
+        }
+    }
+
+    return staleIds
+}
+
+const markErrorToolsAsPruned = (
+    state: SessionState,
+    logger: Logger,
+    ids: string[],
+    turnThreshold: number,
+): void => {
+    const count = markToolIdsForPruning(state, ids)
+    if (count > 0) {
+        logger.debug(
+            `Marked ${count} error tool calls for pruning (older than ${turnThreshold} turns)`,
+        )
+    }
+}
+
 export const purgeErrors = (
     state: SessionState,
     logger: Logger,
     config: PluginConfig,
-    messages: WithParts[],
+    _messages: WithParts[],
 ): void => {
-    if (state.manualMode && !config.manualMode.automaticStrategies) {
-        return
-    }
+    if (state.manualMode && !config.manualMode.automaticStrategies) return
 
-    if (!config.strategies.purgeErrors.enabled) {
-        return
-    }
+    if (!config.strategies.purgeErrors.enabled) return
 
-    const allToolIds = state.toolIdList
-    if (allToolIds.length === 0) {
-        return
-    }
+    if (state.toolIdList.length === 0) return
 
-    // Filter out IDs already pruned
-    const unprunedIds = allToolIds.filter((id) => !state.prune.tools.has(id))
+    const unprunedIds = state.toolIdList.filter((id) => !state.prune.tools.has(id))
+    if (unprunedIds.length === 0) return
 
-    if (unprunedIds.length === 0) {
-        return
-    }
-
-    const protectedTools = config.strategies.purgeErrors.protectedTools
     const turnThreshold = Math.max(1, config.strategies.purgeErrors.turns)
+    const staleIds = collectStaleErrorToolIds(state, unprunedIds, config, turnThreshold)
 
-    const newPruneIds: string[] = []
-
-    for (const id of unprunedIds) {
-        const metadata = state.toolParameters.get(id)
-        if (!metadata) {
-            continue
-        }
-
-        // Skip protected tools
-        if (isToolNameProtected(metadata.tool, protectedTools)) {
-            continue
-        }
-
-        const filePaths = getFilePathsFromParameters(metadata.tool, metadata.parameters)
-        if (isFilePathProtected(filePaths, config.protectedFilePatterns)) {
-            continue
-        }
-
-        // Only process error tools
-        if (metadata.status !== "error") {
-            continue
-        }
-
-        // Check if the tool is old enough to prune
-        const turnAge = state.currentTurn - metadata.turn
-        if (turnAge >= turnThreshold) {
-            newPruneIds.push(id)
-        }
-    }
-
-    if (newPruneIds.length > 0) {
-        state.stats.totalPruneTokens += getTotalToolTokens(state, newPruneIds)
-        for (const id of newPruneIds) {
-            const entry = state.toolParameters.get(id)
-            state.prune.tools.set(id, entry?.tokenCount ?? 0)
-        }
-        logger.debug(
-            `Marked ${newPruneIds.length} error tool calls for pruning (older than ${turnThreshold} turns)`,
-        )
-    }
+    markErrorToolsAsPruned(state, logger, staleIds, turnThreshold)
 }
