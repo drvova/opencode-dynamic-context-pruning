@@ -301,6 +301,31 @@
                             "description": "Tool names or wildcard patterns excluded from error purging. Supports glob wildcards: * matches any characters, ? matches a single character (e.g., \"mcp_*\", \"my_tool_?\")"
                         }
                     }
+                },
+                "toolCallPruning": {
+                    "type": "object",
+                    "description": "Prune completed tool outputs older than a configurable turn threshold. Dynamically adjusts aggressiveness based on context pressure.",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "Enable tool call pruning strategy"
+                        },
+                        "turns": {
+                            "type": "number",
+                            "default": 8,
+                            "description": "Minimum turn age before a tool output becomes eligible for pruning. When context exceeds maxContextLimit, the threshold is halved automatically."
+                        },
+                        "protectedTools": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [],
+                            "description": "Additional tool names or wildcard patterns excluded from pruning. 'task' and 'skill' are always protected. Supports glob wildcards: * matches any characters, ? matches a single character (e.g., \"mcp_*\", \"my_tool_?\")"
+                        }
+                    }
                 }
             }
         }

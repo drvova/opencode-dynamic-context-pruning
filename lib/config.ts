@@ -44,6 +44,12 @@ export interface PurgeErrors {
     protectedTools: string[]
 }
 
+export interface ToolCallPruning {
+    enabled: boolean
+    turns: number
+    protectedTools: string[]
+}
+
 export interface TurnProtection {
     enabled: boolean
     turns: number
@@ -68,6 +74,7 @@ export interface PluginConfig {
     strategies: {
         deduplication: Deduplication
         purgeErrors: PurgeErrors
+        toolCallPruning: ToolCallPruning
     }
 }
 
@@ -88,7 +95,7 @@ const DEFAULT_PROTECTED_TOOLS = [
 
 const COMPRESS_DEFAULT_PROTECTED_TOOLS = ["task", "skill", "todowrite", "todoread"]
 
-export const VALID_CONFIG_KEYS = new Set([
+const VALID_CONFIG_KEYS = new Set([
     "$schema",
     "enabled",
     "debug",
@@ -130,6 +137,10 @@ export const VALID_CONFIG_KEYS = new Set([
     "strategies.purgeErrors.enabled",
     "strategies.purgeErrors.turns",
     "strategies.purgeErrors.protectedTools",
+    "strategies.toolCallPruning",
+    "strategies.toolCallPruning.enabled",
+    "strategies.toolCallPruning.turns",
+    "strategies.toolCallPruning.protectedTools",
 ])
 
 function getConfigKeyPaths(obj: Record<string, any>, prefix = ""): string[] {
@@ -150,7 +161,7 @@ function getConfigKeyPaths(obj: Record<string, any>, prefix = ""): string[] {
     return keys
 }
 
-export function getInvalidConfigKeys(userConfig: Record<string, any>): string[] {
+function getInvalidConfigKeys(userConfig: Record<string, any>): string[] {
     const userKeys = getConfigKeyPaths(userConfig)
     return userKeys.filter((key) => !VALID_CONFIG_KEYS.has(key))
 }
@@ -161,433 +172,205 @@ interface ValidationError {
     actual: string
 }
 
-export function validateConfigTypes(config: Record<string, any>): ValidationError[] {
+// --- Validation helpers ---
+
+function validateBoolean(
+    value: unknown,
+    key: string,
+    errors: ValidationError[],
+): void {
+    if (value !== undefined && typeof value !== "boolean") {
+        errors.push({ key, expected: "boolean", actual: typeof value })
+    }
+}
+
+function validateEnum(
+    value: unknown,
+    key: string,
+    values: string[],
+    humanReadable: string,
+    errors: ValidationError[],
+): void {
+    if (value !== undefined && !values.includes(value as string)) {
+        errors.push({ key, expected: humanReadable, actual: JSON.stringify(value) })
+    }
+}
+
+function validateNumber(
+    value: unknown,
+    key: string,
+    errors: ValidationError[],
+): void {
+    if (value !== undefined && typeof value !== "number") {
+        errors.push({ key, expected: "number", actual: typeof value })
+    }
+}
+
+function validatePositiveNumber(
+    value: unknown,
+    key: string,
+    errors: ValidationError[],
+    clampingMessage?: string,
+): void {
+    validateNumber(value, key, errors)
+    if (typeof value === "number" && value < 1) {
+        errors.push({
+            key,
+            expected: "positive number (>= 1)",
+            actual: `${value}${clampingMessage ?? ""}`,
+        })
+    }
+}
+
+function validateStringArray(
+    value: unknown,
+    key: string,
+    errors: ValidationError[],
+): void {
+    if (value === undefined) return
+    if (!Array.isArray(value)) {
+        errors.push({ key, expected: "string[]", actual: typeof value })
+    } else if (!value.every((v: unknown) => typeof v === "string")) {
+        errors.push({ key, expected: "string[]", actual: "non-string entries" })
+    }
+}
+
+function validateNested(
+    value: unknown,
+    key: string,
+    errors: ValidationError[],
+    validate: (obj: Record<string, any>) => void,
+): void {
+    if (value === undefined) return
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+        errors.push({ key, expected: "object", actual: typeof value })
+    } else {
+        validate(value as Record<string, any>)
+    }
+}
+
+function validateNestedIfTruthy(
+    value: unknown,
+    key: string,
+    errors: ValidationError[],
+    validate: (obj: Record<string, any>) => void,
+): void {
+    if (!value) return
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+        errors.push({ key, expected: "object", actual: typeof value })
+    } else {
+        validate(value as Record<string, any>)
+    }
+}
+
+function validateLimitValue(
+    key: string,
+    value: unknown,
+    errors: ValidationError[],
+): void {
+    if (value === undefined) return
+    const isValidNumber = typeof value === "number"
+    const isPercentString = typeof value === "string" && value.endsWith("%")
+    if (!isValidNumber && !isPercentString) {
+        errors.push({
+            key,
+            expected: 'number | "${number}%"',
+            actual: JSON.stringify(value),
+        })
+    }
+}
+
+function validateModelLimits(
+    key: "compress.modelMaxLimits" | "compress.modelMinLimits",
+    limits: unknown,
+    errors: ValidationError[],
+): void {
+    if (limits === undefined) return
+    if (typeof limits !== "object" || limits === null || Array.isArray(limits)) {
+        errors.push({
+            key,
+            expected: "Record<string, number | ${number}%>",
+            actual: typeof limits,
+        })
+        return
+    }
+    for (const [providerModelKey, limit] of Object.entries(limits as Record<string, unknown>)) {
+        const isValidNumber = typeof limit === "number"
+        const isPercentString =
+            typeof limit === "string" && /^\d+(?:\.\d+)?%$/.test(limit)
+        if (!isValidNumber && !isPercentString) {
+            errors.push({
+                key: `${key}.${providerModelKey}`,
+                expected: 'number | "${number}%"',
+                actual: JSON.stringify(limit),
+            })
+        }
+    }
+}
+
+// --- Main validation ---
+
+function validateConfigTypes(config: Record<string, any>): ValidationError[] {
     const errors: ValidationError[] = []
 
-    if (config.enabled !== undefined && typeof config.enabled !== "boolean") {
-        errors.push({ key: "enabled", expected: "boolean", actual: typeof config.enabled })
-    }
+    validateBoolean(config.enabled, "enabled", errors)
+    validateBoolean(config.debug, "debug", errors)
+    validateEnum(config.pruneNotification, "pruneNotification", ["off", "minimal", "detailed"], '"off" | "minimal" | "detailed"', errors)
+    validateEnum(config.pruneNotificationType, "pruneNotificationType", ["chat", "toast"], '"chat" | "toast"', errors)
+    validateStringArray(config.protectedFilePatterns, "protectedFilePatterns", errors)
 
-    if (config.debug !== undefined && typeof config.debug !== "boolean") {
-        errors.push({ key: "debug", expected: "boolean", actual: typeof config.debug })
-    }
+    validateNestedIfTruthy(config.turnProtection, "turnProtection", errors, (tp) => {
+        validateBoolean(tp.enabled, "turnProtection.enabled", errors)
+        validatePositiveNumber(tp.turns, "turnProtection.turns", errors)
+    })
 
-    if (config.pruneNotification !== undefined) {
-        const validValues = ["off", "minimal", "detailed"]
-        if (!validValues.includes(config.pruneNotification)) {
-            errors.push({
-                key: "pruneNotification",
-                expected: '"off" | "minimal" | "detailed"',
-                actual: JSON.stringify(config.pruneNotification),
-            })
-        }
-    }
+    validateNested(config.experimental, "experimental", errors, (exp) => {
+        validateBoolean(exp.allowSubAgents, "experimental.allowSubAgents", errors)
+        validateBoolean(exp.customPrompts, "experimental.customPrompts", errors)
+    })
 
-    if (config.pruneNotificationType !== undefined) {
-        const validValues = ["chat", "toast"]
-        if (!validValues.includes(config.pruneNotificationType)) {
-            errors.push({
-                key: "pruneNotificationType",
-                expected: '"chat" | "toast"',
-                actual: JSON.stringify(config.pruneNotificationType),
-            })
-        }
-    }
+    validateNested(config.commands, "commands", errors, (cmd) => {
+        validateBoolean(cmd.enabled, "commands.enabled", errors)
+        validateStringArray(cmd.protectedTools, "commands.protectedTools", errors)
+    })
 
-    if (config.protectedFilePatterns !== undefined) {
-        if (!Array.isArray(config.protectedFilePatterns)) {
-            errors.push({
-                key: "protectedFilePatterns",
-                expected: "string[]",
-                actual: typeof config.protectedFilePatterns,
-            })
-        } else if (!config.protectedFilePatterns.every((v: unknown) => typeof v === "string")) {
-            errors.push({
-                key: "protectedFilePatterns",
-                expected: "string[]",
-                actual: "non-string entries",
-            })
-        }
-    }
+    validateNested(config.manualMode, "manualMode", errors, (mm) => {
+        validateBoolean(mm.enabled, "manualMode.enabled", errors)
+        validateBoolean(mm.automaticStrategies, "manualMode.automaticStrategies", errors)
+    })
 
-    if (config.turnProtection) {
-        if (
-            config.turnProtection.enabled !== undefined &&
-            typeof config.turnProtection.enabled !== "boolean"
-        ) {
-            errors.push({
-                key: "turnProtection.enabled",
-                expected: "boolean",
-                actual: typeof config.turnProtection.enabled,
-            })
-        }
+    validateNested(config.compress, "compress", errors, (c) => {
+        validateEnum(c.mode, "compress.mode", ["range", "message"], '"range" | "message"', errors)
+        validateBoolean(c.summaryBuffer, "compress.summaryBuffer", errors)
+        validatePositiveNumber(c.nudgeFrequency, "compress.nudgeFrequency", errors, " (will be clamped to 1)")
+        validatePositiveNumber(c.iterationNudgeThreshold, "compress.iterationNudgeThreshold", errors, " (will be clamped to 1)")
+        validateEnum(c.nudgeForce, "compress.nudgeForce", ["strong", "soft"], '"strong" | "soft"', errors)
+        validateStringArray(c.protectedTools, "compress.protectedTools", errors)
+        validateBoolean(c.protectUserMessages, "compress.protectUserMessages", errors)
+        validateLimitValue("compress.maxContextLimit", c.maxContextLimit, errors)
+        validateLimitValue("compress.minContextLimit", c.minContextLimit, errors)
+        validateModelLimits("compress.modelMaxLimits", c.modelMaxLimits, errors)
+        validateModelLimits("compress.modelMinLimits", c.modelMinLimits, errors)
+        validateEnum(c.permission, "compress.permission", ["ask", "allow", "deny"], '"ask" | "allow" | "deny"', errors)
+        validateBoolean(c.showCompression, "compress.showCompression", errors)
+    })
 
-        if (
-            config.turnProtection.turns !== undefined &&
-            typeof config.turnProtection.turns !== "number"
-        ) {
-            errors.push({
-                key: "turnProtection.turns",
-                expected: "number",
-                actual: typeof config.turnProtection.turns,
-            })
-        }
-        if (typeof config.turnProtection.turns === "number" && config.turnProtection.turns < 1) {
-            errors.push({
-                key: "turnProtection.turns",
-                expected: "positive number (>= 1)",
-                actual: `${config.turnProtection.turns}`,
-            })
-        }
-    }
+    validateNestedIfTruthy(config.strategies, "strategies", errors, (s) => {
+        validateBoolean(s.deduplication?.enabled, "strategies.deduplication.enabled", errors)
+        validateStringArray(s.deduplication?.protectedTools, "strategies.deduplication.protectedTools", errors)
 
-    const experimental = config.experimental
-    if (experimental !== undefined) {
-        if (
-            typeof experimental !== "object" ||
-            experimental === null ||
-            Array.isArray(experimental)
-        ) {
-            errors.push({
-                key: "experimental",
-                expected: "object",
-                actual: typeof experimental,
-            })
-        } else {
-            if (
-                experimental.allowSubAgents !== undefined &&
-                typeof experimental.allowSubAgents !== "boolean"
-            ) {
-                errors.push({
-                    key: "experimental.allowSubAgents",
-                    expected: "boolean",
-                    actual: typeof experimental.allowSubAgents,
-                })
-            }
+        validateNestedIfTruthy(s.purgeErrors, "strategies.purgeErrors", errors, (pe) => {
+            validateBoolean(pe.enabled, "strategies.purgeErrors.enabled", errors)
+            validatePositiveNumber(pe.turns, "strategies.purgeErrors.turns", errors, " (will be clamped to 1)")
+            validateStringArray(pe.protectedTools, "strategies.purgeErrors.protectedTools", errors)
+        })
 
-            if (
-                experimental.customPrompts !== undefined &&
-                typeof experimental.customPrompts !== "boolean"
-            ) {
-                errors.push({
-                    key: "experimental.customPrompts",
-                    expected: "boolean",
-                    actual: typeof experimental.customPrompts,
-                })
-            }
-        }
-    }
-
-    const commands = config.commands
-    if (commands !== undefined) {
-        if (typeof commands !== "object" || commands === null || Array.isArray(commands)) {
-            errors.push({
-                key: "commands",
-                expected: "object",
-                actual: typeof commands,
-            })
-        } else {
-            if (commands.enabled !== undefined && typeof commands.enabled !== "boolean") {
-                errors.push({
-                    key: "commands.enabled",
-                    expected: "boolean",
-                    actual: typeof commands.enabled,
-                })
-            }
-            if (commands.protectedTools !== undefined && !Array.isArray(commands.protectedTools)) {
-                errors.push({
-                    key: "commands.protectedTools",
-                    expected: "string[]",
-                    actual: typeof commands.protectedTools,
-                })
-            }
-        }
-    }
-
-    const manualMode = config.manualMode
-    if (manualMode !== undefined) {
-        if (typeof manualMode !== "object" || manualMode === null || Array.isArray(manualMode)) {
-            errors.push({
-                key: "manualMode",
-                expected: "object",
-                actual: typeof manualMode,
-            })
-        } else {
-            if (manualMode.enabled !== undefined && typeof manualMode.enabled !== "boolean") {
-                errors.push({
-                    key: "manualMode.enabled",
-                    expected: "boolean",
-                    actual: typeof manualMode.enabled,
-                })
-            }
-
-            if (
-                manualMode.automaticStrategies !== undefined &&
-                typeof manualMode.automaticStrategies !== "boolean"
-            ) {
-                errors.push({
-                    key: "manualMode.automaticStrategies",
-                    expected: "boolean",
-                    actual: typeof manualMode.automaticStrategies,
-                })
-            }
-        }
-    }
-
-    const compress = config.compress
-    if (compress !== undefined) {
-        if (typeof compress !== "object" || compress === null || Array.isArray(compress)) {
-            errors.push({
-                key: "compress",
-                expected: "object",
-                actual: typeof compress,
-            })
-        } else {
-            if (
-                compress.mode !== undefined &&
-                compress.mode !== "range" &&
-                compress.mode !== "message"
-            ) {
-                errors.push({
-                    key: "compress.mode",
-                    expected: '"range" | "message"',
-                    actual: JSON.stringify(compress.mode),
-                })
-            }
-
-            if (
-                compress.summaryBuffer !== undefined &&
-                typeof compress.summaryBuffer !== "boolean"
-            ) {
-                errors.push({
-                    key: "compress.summaryBuffer",
-                    expected: "boolean",
-                    actual: typeof compress.summaryBuffer,
-                })
-            }
-
-            if (
-                compress.nudgeFrequency !== undefined &&
-                typeof compress.nudgeFrequency !== "number"
-            ) {
-                errors.push({
-                    key: "compress.nudgeFrequency",
-                    expected: "number",
-                    actual: typeof compress.nudgeFrequency,
-                })
-            }
-
-            if (typeof compress.nudgeFrequency === "number" && compress.nudgeFrequency < 1) {
-                errors.push({
-                    key: "compress.nudgeFrequency",
-                    expected: "positive number (>= 1)",
-                    actual: `${compress.nudgeFrequency} (will be clamped to 1)`,
-                })
-            }
-
-            if (
-                compress.iterationNudgeThreshold !== undefined &&
-                typeof compress.iterationNudgeThreshold !== "number"
-            ) {
-                errors.push({
-                    key: "compress.iterationNudgeThreshold",
-                    expected: "number",
-                    actual: typeof compress.iterationNudgeThreshold,
-                })
-            }
-
-            if (
-                compress.nudgeForce !== undefined &&
-                compress.nudgeForce !== "strong" &&
-                compress.nudgeForce !== "soft"
-            ) {
-                errors.push({
-                    key: "compress.nudgeForce",
-                    expected: '"strong" | "soft"',
-                    actual: JSON.stringify(compress.nudgeForce),
-                })
-            }
-
-            if (compress.protectedTools !== undefined && !Array.isArray(compress.protectedTools)) {
-                errors.push({
-                    key: "compress.protectedTools",
-                    expected: "string[]",
-                    actual: typeof compress.protectedTools,
-                })
-            }
-
-            if (
-                compress.protectUserMessages !== undefined &&
-                typeof compress.protectUserMessages !== "boolean"
-            ) {
-                errors.push({
-                    key: "compress.protectUserMessages",
-                    expected: "boolean",
-                    actual: typeof compress.protectUserMessages,
-                })
-            }
-
-            if (
-                typeof compress.iterationNudgeThreshold === "number" &&
-                compress.iterationNudgeThreshold < 1
-            ) {
-                errors.push({
-                    key: "compress.iterationNudgeThreshold",
-                    expected: "positive number (>= 1)",
-                    actual: `${compress.iterationNudgeThreshold} (will be clamped to 1)`,
-                })
-            }
-
-            const validateLimitValue = (
-                key: string,
-                value: unknown,
-                actualValue: unknown = value,
-            ): void => {
-                const isValidNumber = typeof value === "number"
-                const isPercentString = typeof value === "string" && value.endsWith("%")
-
-                if (!isValidNumber && !isPercentString) {
-                    errors.push({
-                        key,
-                        expected: 'number | "${number}%"',
-                        actual: JSON.stringify(actualValue),
-                    })
-                }
-            }
-
-            const validateModelLimits = (
-                key: "compress.modelMaxLimits" | "compress.modelMinLimits",
-                limits: unknown,
-            ): void => {
-                if (limits === undefined) {
-                    return
-                }
-
-                if (typeof limits !== "object" || limits === null || Array.isArray(limits)) {
-                    errors.push({
-                        key,
-                        expected: "Record<string, number | ${number}%>",
-                        actual: typeof limits,
-                    })
-                    return
-                }
-
-                for (const [providerModelKey, limit] of Object.entries(limits)) {
-                    const isValidNumber = typeof limit === "number"
-                    const isPercentString =
-                        typeof limit === "string" && /^\d+(?:\.\d+)?%$/.test(limit)
-                    if (!isValidNumber && !isPercentString) {
-                        errors.push({
-                            key: `${key}.${providerModelKey}`,
-                            expected: 'number | "${number}%"',
-                            actual: JSON.stringify(limit),
-                        })
-                    }
-                }
-            }
-
-            if (compress.maxContextLimit !== undefined) {
-                validateLimitValue("compress.maxContextLimit", compress.maxContextLimit)
-            }
-
-            if (compress.minContextLimit !== undefined) {
-                validateLimitValue("compress.minContextLimit", compress.minContextLimit)
-            }
-
-            validateModelLimits("compress.modelMaxLimits", compress.modelMaxLimits)
-            validateModelLimits("compress.modelMinLimits", compress.modelMinLimits)
-
-            const validValues = ["ask", "allow", "deny"]
-            if (compress.permission !== undefined && !validValues.includes(compress.permission)) {
-                errors.push({
-                    key: "compress.permission",
-                    expected: '"ask" | "allow" | "deny"',
-                    actual: JSON.stringify(compress.permission),
-                })
-            }
-
-            if (
-                compress.showCompression !== undefined &&
-                typeof compress.showCompression !== "boolean"
-            ) {
-                errors.push({
-                    key: "compress.showCompression",
-                    expected: "boolean",
-                    actual: typeof compress.showCompression,
-                })
-            }
-        }
-    }
-
-    const strategies = config.strategies
-    if (strategies) {
-        if (
-            strategies.deduplication?.enabled !== undefined &&
-            typeof strategies.deduplication.enabled !== "boolean"
-        ) {
-            errors.push({
-                key: "strategies.deduplication.enabled",
-                expected: "boolean",
-                actual: typeof strategies.deduplication.enabled,
-            })
-        }
-
-        if (
-            strategies.deduplication?.protectedTools !== undefined &&
-            !Array.isArray(strategies.deduplication.protectedTools)
-        ) {
-            errors.push({
-                key: "strategies.deduplication.protectedTools",
-                expected: "string[]",
-                actual: typeof strategies.deduplication.protectedTools,
-            })
-        }
-
-        if (strategies.purgeErrors) {
-            if (
-                strategies.purgeErrors.enabled !== undefined &&
-                typeof strategies.purgeErrors.enabled !== "boolean"
-            ) {
-                errors.push({
-                    key: "strategies.purgeErrors.enabled",
-                    expected: "boolean",
-                    actual: typeof strategies.purgeErrors.enabled,
-                })
-            }
-
-            if (
-                strategies.purgeErrors.turns !== undefined &&
-                typeof strategies.purgeErrors.turns !== "number"
-            ) {
-                errors.push({
-                    key: "strategies.purgeErrors.turns",
-                    expected: "number",
-                    actual: typeof strategies.purgeErrors.turns,
-                })
-            }
-            // Warn if turns is 0 or negative - will be clamped to 1
-            if (
-                typeof strategies.purgeErrors.turns === "number" &&
-                strategies.purgeErrors.turns < 1
-            ) {
-                errors.push({
-                    key: "strategies.purgeErrors.turns",
-                    expected: "positive number (>= 1)",
-                    actual: `${strategies.purgeErrors.turns} (will be clamped to 1)`,
-                })
-            }
-            if (
-                strategies.purgeErrors.protectedTools !== undefined &&
-                !Array.isArray(strategies.purgeErrors.protectedTools)
-            ) {
-                errors.push({
-                    key: "strategies.purgeErrors.protectedTools",
-                    expected: "string[]",
-                    actual: typeof strategies.purgeErrors.protectedTools,
-                })
-            }
-        }
-    }
+        validateNestedIfTruthy(s.toolCallPruning, "strategies.toolCallPruning", errors, (tcp) => {
+            validateBoolean(tcp.enabled, "strategies.toolCallPruning.enabled", errors)
+            validatePositiveNumber(tcp.turns, "strategies.toolCallPruning.turns", errors, " (will be clamped to 1)")
+            validateStringArray(tcp.protectedTools, "strategies.toolCallPruning.protectedTools", errors)
+        })
+    })
 
     return errors
 }
@@ -682,6 +465,11 @@ const defaultConfig: PluginConfig = {
             turns: 4,
             protectedTools: [],
         },
+        toolCallPruning: {
+            enabled: false,
+            turns: 8,
+            protectedTools: [],
+        },
     },
 }
 
@@ -707,40 +495,32 @@ function findOpencodeDir(startDir: string): string | null {
     return null
 }
 
+function resolveJsonConfigPath(dir: string, baseName: string): string | null {
+    const jsonc = join(dir, `${baseName}.jsonc`)
+    if (existsSync(jsonc)) return jsonc
+    const json = join(dir, `${baseName}.json`)
+    if (existsSync(json)) return json
+    return null
+}
+
 function getConfigPaths(ctx?: PluginInput): {
     global: string | null
     configDir: string | null
     project: string | null
 } {
-    const global = existsSync(GLOBAL_CONFIG_PATH_JSONC)
-        ? GLOBAL_CONFIG_PATH_JSONC
-        : existsSync(GLOBAL_CONFIG_PATH_JSON)
-          ? GLOBAL_CONFIG_PATH_JSON
-          : null
+    const global = resolveJsonConfigPath(GLOBAL_CONFIG_DIR, "dcp")
 
     let configDir: string | null = null
     const opencodeConfigDir = process.env.OPENCODE_CONFIG_DIR
     if (opencodeConfigDir) {
-        const configJsonc = join(opencodeConfigDir, "dcp.jsonc")
-        const configJson = join(opencodeConfigDir, "dcp.json")
-        configDir = existsSync(configJsonc)
-            ? configJsonc
-            : existsSync(configJson)
-              ? configJson
-              : null
+        configDir = resolveJsonConfigPath(opencodeConfigDir, "dcp")
     }
 
     let project: string | null = null
     if (ctx?.directory) {
         const opencodeDir = findOpencodeDir(ctx.directory)
         if (opencodeDir) {
-            const projectJsonc = join(opencodeDir, "dcp.jsonc")
-            const projectJson = join(opencodeDir, "dcp.json")
-            project = existsSync(projectJsonc)
-                ? projectJsonc
-                : existsSync(projectJson)
-                  ? projectJson
-                  : null
+            project = resolveJsonConfigPath(opencodeDir, "dcp")
         }
     }
 
@@ -783,33 +563,38 @@ function loadConfigFile(configPath: string): ConfigLoadResult {
     }
 }
 
+function mergeProtectedTools(base: string[], override?: string[]): string[] {
+    return [...new Set([...base, ...(override ?? [])])]
+}
+
 function mergeStrategies(
     base: PluginConfig["strategies"],
     override?: Partial<PluginConfig["strategies"]>,
 ): PluginConfig["strategies"] {
-    if (!override) {
-        return base
-    }
-
+    if (!override) return base
     return {
         deduplication: {
             enabled: override.deduplication?.enabled ?? base.deduplication.enabled,
-            protectedTools: [
-                ...new Set([
-                    ...base.deduplication.protectedTools,
-                    ...(override.deduplication?.protectedTools ?? []),
-                ]),
-            ],
+            protectedTools: mergeProtectedTools(
+                base.deduplication.protectedTools,
+                override.deduplication?.protectedTools,
+            ),
         },
         purgeErrors: {
             enabled: override.purgeErrors?.enabled ?? base.purgeErrors.enabled,
             turns: override.purgeErrors?.turns ?? base.purgeErrors.turns,
-            protectedTools: [
-                ...new Set([
-                    ...base.purgeErrors.protectedTools,
-                    ...(override.purgeErrors?.protectedTools ?? []),
-                ]),
-            ],
+            protectedTools: mergeProtectedTools(
+                base.purgeErrors.protectedTools,
+                override.purgeErrors?.protectedTools,
+            ),
+        },
+        toolCallPruning: {
+            enabled: override.toolCallPruning?.enabled ?? base.toolCallPruning.enabled,
+            turns: override.toolCallPruning?.turns ?? base.toolCallPruning.turns,
+            protectedTools: mergeProtectedTools(
+                base.toolCallPruning.protectedTools,
+                override.toolCallPruning?.protectedTools,
+            ),
         },
     }
 }
@@ -905,6 +690,10 @@ function deepCloneConfig(config: PluginConfig): PluginConfig {
             purgeErrors: {
                 ...config.strategies.purgeErrors,
                 protectedTools: [...config.strategies.purgeErrors.protectedTools],
+            },
+            toolCallPruning: {
+                ...config.strategies.toolCallPruning,
+                protectedTools: [...config.strategies.toolCallPruning.protectedTools],
             },
         },
     }

@@ -14,6 +14,7 @@ import {
     stripStaleMetadata,
     syncCompressionBlocks,
 } from "./messages"
+import { toolCallPruning } from "./strategies"
 import { renderSystemPrompt, type PromptStore } from "./prompts"
 import { buildProtectedToolsExtension } from "./prompts/extensions/system"
 import {
@@ -55,43 +56,66 @@ export function createSystemPromptHandler(
         input: { sessionID?: string; model: { limit: { context: number } } },
         output: { system: string[] },
     ) => {
-        if (input.model?.limit?.context) {
-            state.modelContextLimit = input.model.limit.context
-            logger.debug("Cached model context limit", { limit: state.modelContextLimit })
-        }
-
-        if (state.isSubAgent && !config.experimental.allowSubAgents) {
-            return
-        }
-
+        cacheModelContextLimit(state, input.model?.limit?.context, logger)
+        if (shouldSkipForSubAgent(state, config)) return
         const systemText = output.system.join("\n")
-        if (INTERNAL_AGENT_SIGNATURES.some((sig) => systemText.includes(sig))) {
-            logger.info("Skipping DCP system prompt injection for internal agent")
-            return
-        }
+        if (isInternalAgent(systemText, logger)) return
+        if (resolveSessionPermission(state, config, input.sessionID) === "deny") return
+        renderAndInjectPrompt(output, prompts, config, state)
+    }
+}
 
-        const effectivePermission =
-            input.sessionID && state.sessionId === input.sessionID
-                ? compressPermission(state, config)
-                : config.compress.permission
+function cacheModelContextLimit(
+    state: SessionState,
+    limit: number | undefined,
+    logger: Logger,
+): void {
+    if (limit) {
+        state.modelContextLimit = limit
+        logger.debug("Cached model context limit", { limit: state.modelContextLimit })
+    }
+}
 
-        if (effectivePermission === "deny") {
-            return
-        }
+function shouldSkipForSubAgent(state: SessionState, config: PluginConfig): boolean {
+    return state.isSubAgent && !config.experimental.allowSubAgents
+}
 
-        prompts.reload()
-        const runtimePrompts = prompts.getRuntimePrompts()
-        const newPrompt = renderSystemPrompt(
-            runtimePrompts,
-            buildProtectedToolsExtension(config.compress.protectedTools),
-            !!state.manualMode,
-            state.isSubAgent && config.experimental.allowSubAgents,
-        )
-        if (output.system.length > 0) {
-            output.system[output.system.length - 1] += "\n\n" + newPrompt
-        } else {
-            output.system.push(newPrompt)
-        }
+function isInternalAgent(systemText: string, logger: Logger): boolean {
+    if (INTERNAL_AGENT_SIGNATURES.some((sig) => systemText.includes(sig))) {
+        logger.info("Skipping DCP system prompt injection for internal agent")
+        return true
+    }
+    return false
+}
+
+function resolveSessionPermission(
+    state: SessionState,
+    config: PluginConfig,
+    sessionID: string | undefined,
+): string {
+    return sessionID && state.sessionId === sessionID
+        ? compressPermission(state, config)
+        : config.compress.permission
+}
+
+function renderAndInjectPrompt(
+    output: { system: string[] },
+    prompts: PromptStore,
+    config: PluginConfig,
+    state: SessionState,
+): void {
+    prompts.reload()
+    const runtimePrompts = prompts.getRuntimePrompts()
+    const newPrompt = renderSystemPrompt(
+        runtimePrompts,
+        buildProtectedToolsExtension(config.compress.protectedTools),
+        !!state.manualMode,
+        state.isSubAgent && config.experimental.allowSubAgents,
+    )
+    if (output.system.length > 0) {
+        output.system[output.system.length - 1] += "\n\n" + newPrompt
+    } else {
+        output.system.push(newPrompt)
     }
 }
 
@@ -126,7 +150,8 @@ export function createChatMessageTransformHandler(
         assignMessageRefs(state, output.messages)
         syncCompressionBlocks(state, logger, output.messages)
         syncToolCache(state, config, logger, output.messages)
-        buildToolIdList(state, output.messages)
+        state.toolIdList = buildToolIdList(state, output.messages)
+        toolCallPruning(state, logger, config, output.messages)
         prune(state, logger, config, output.messages)
         await injectExtendedSubAgentResults(
             client,
@@ -167,110 +192,126 @@ export function createCommandExecuteHandler(
         input: { command: string; sessionID: string; arguments: string },
         output: { parts: any[] },
     ) => {
-        if (!config.commands.enabled) {
-            return
-        }
+        if (!config.commands.enabled) return
+        if (input.command !== "dcp") return
 
-        if (input.command === "dcp") {
-            const messagesResponse = await client.session.messages({
-                path: { id: input.sessionID },
-            })
-            const messages = filterMessages(messagesResponse.data || messagesResponse)
+        const prepared = await prepareDcpExecution(client, state, logger, config, hostPermissions, input)
+        if (!prepared) return
 
-            await ensureSessionInitialized(
-                client,
-                state,
-                input.sessionID,
-                logger,
-                messages,
-                config.manualMode.enabled,
-            )
-
-            syncCompressPermissionState(state, config, hostPermissions, messages)
-
-            const effectivePermission = compressPermission(state, config)
-            if (effectivePermission === "deny") {
-                return
-            }
-
-            const args = (input.arguments || "").trim().split(/\s+/).filter(Boolean)
-            const subcommand = args[0]?.toLowerCase() || ""
-            const subArgs = args.slice(1)
-
-            const commandCtx = {
-                client,
-                state,
-                config,
-                logger,
-                sessionId: input.sessionID,
-                messages,
-            }
-
-            if (subcommand === "context") {
-                await handleContextCommand(commandCtx)
-                throw new Error("__DCP_CONTEXT_HANDLED__")
-            }
-
-            if (subcommand === "stats") {
-                await handleStatsCommand(commandCtx)
-                throw new Error("__DCP_STATS_HANDLED__")
-            }
-
-            if (subcommand === "sweep") {
-                await handleSweepCommand({
-                    ...commandCtx,
-                    args: subArgs,
-                    workingDirectory,
-                })
-                throw new Error("__DCP_SWEEP_HANDLED__")
-            }
-
-            if (subcommand === "manual") {
-                await handleManualToggleCommand(commandCtx, subArgs[0]?.toLowerCase())
-                throw new Error("__DCP_MANUAL_HANDLED__")
-            }
-
-            if (subcommand === "compress") {
-                const userFocus = subArgs.join(" ").trim()
-                const prompt = await handleManualTriggerCommand(commandCtx, "compress", userFocus)
-                if (!prompt) {
-                    throw new Error("__DCP_MANUAL_TRIGGER_BLOCKED__")
-                }
-
-                state.manualMode = "compress-pending"
-                state.pendingManualTrigger = {
-                    sessionId: input.sessionID,
-                    prompt,
-                }
-                const rawArgs = (input.arguments || "").trim()
-                output.parts.length = 0
-                output.parts.push({
-                    type: "text",
-                    text: rawArgs ? `/dcp ${rawArgs}` : `/dcp ${subcommand}`,
-                })
-                return
-            }
-
-            if (subcommand === "decompress") {
-                await handleDecompressCommand({
-                    ...commandCtx,
-                    args: subArgs,
-                })
-                throw new Error("__DCP_DECOMPRESS_HANDLED__")
-            }
-
-            if (subcommand === "recompress") {
-                await handleRecompressCommand({
-                    ...commandCtx,
-                    args: subArgs,
-                })
-                throw new Error("__DCP_RECOMPRESS_HANDLED__")
-            }
-
-            await handleHelpCommand(commandCtx)
-            throw new Error("__DCP_HELP_HANDLED__")
-        }
+        await routeDcpSubcommand(prepared, input, output, state, workingDirectory)
     }
+}
+
+async function prepareDcpExecution(
+    client: any,
+    state: SessionState,
+    logger: Logger,
+    config: PluginConfig,
+    hostPermissions: HostPermissionSnapshot,
+    input: { command: string; sessionID: string; arguments: string },
+) {
+    const messagesResponse = await client.session.messages({
+        path: { id: input.sessionID },
+    })
+    const messages = filterMessages(messagesResponse.data || messagesResponse)
+
+    await ensureSessionInitialized(
+        client,
+        state,
+        input.sessionID,
+        logger,
+        messages,
+        config.manualMode.enabled,
+    )
+
+    syncCompressPermissionState(state, config, hostPermissions, messages)
+
+    const effectivePermission = compressPermission(state, config)
+    if (effectivePermission === "deny") return null
+
+    const args = (input.arguments || "").trim().split(/\s+/).filter(Boolean)
+    const subcommand = args[0]?.toLowerCase() || ""
+    const subArgs = args.slice(1)
+
+    const commandCtx = {
+        client,
+        state,
+        config,
+        logger,
+        sessionId: input.sessionID,
+        messages,
+    }
+
+    return { commandCtx, subcommand, subArgs }
+}
+
+async function handleDcpCompress(
+    commandCtx: any,
+    subArgs: string[],
+    subcommand: string,
+    input: { command: string; sessionID: string; arguments: string },
+    output: { parts: any[] },
+    state: SessionState,
+) {
+    const userFocus = subArgs.join(" ").trim()
+    const prompt = await handleManualTriggerCommand(commandCtx, "compress", userFocus)
+    if (!prompt) {
+        throw new Error("__DCP_MANUAL_TRIGGER_BLOCKED__")
+    }
+
+    state.manualMode = "compress-pending"
+    state.pendingManualTrigger = {
+        sessionId: input.sessionID,
+        prompt,
+    }
+    const rawArgs = (input.arguments || "").trim()
+    output.parts.length = 0
+    output.parts.push({
+        type: "text",
+        text: rawArgs ? `/dcp ${rawArgs}` : `/dcp ${subcommand}`,
+    })
+}
+
+async function routeDcpSubcommand(
+    prepared: { commandCtx: any; subcommand: string; subArgs: string[] },
+    input: { command: string; sessionID: string; arguments: string },
+    output: { parts: any[] },
+    state: SessionState,
+    workingDirectory: string,
+) {
+    const { commandCtx, subcommand, subArgs } = prepared
+
+    if (subcommand === "context") {
+        await handleContextCommand(commandCtx)
+        throw new Error("__DCP_CONTEXT_HANDLED__")
+    }
+    if (subcommand === "stats") {
+        await handleStatsCommand(commandCtx)
+        throw new Error("__DCP_STATS_HANDLED__")
+    }
+    if (subcommand === "sweep") {
+        await handleSweepCommand({ ...commandCtx, args: subArgs, workingDirectory })
+        throw new Error("__DCP_SWEEP_HANDLED__")
+    }
+    if (subcommand === "manual") {
+        await handleManualToggleCommand(commandCtx, subArgs[0]?.toLowerCase())
+        throw new Error("__DCP_MANUAL_HANDLED__")
+    }
+    if (subcommand === "compress") {
+        await handleDcpCompress(commandCtx, subArgs, subcommand, input, output, state)
+        return
+    }
+    if (subcommand === "decompress") {
+        await handleDecompressCommand({ ...commandCtx, args: subArgs })
+        throw new Error("__DCP_DECOMPRESS_HANDLED__")
+    }
+    if (subcommand === "recompress") {
+        await handleRecompressCommand({ ...commandCtx, args: subArgs })
+        throw new Error("__DCP_RECOMPRESS_HANDLED__")
+    }
+
+    await handleHelpCommand(commandCtx)
+    throw new Error("__DCP_HELP_HANDLED__")
 }
 
 export function createTextCompleteHandler() {
@@ -284,84 +325,85 @@ export function createTextCompleteHandler() {
 
 export function createEventHandler(state: SessionState, logger: Logger) {
     return async (input: { event: any }) => {
-        const eventTime =
-            typeof input.event?.time === "number" && Number.isFinite(input.event.time)
-                ? input.event.time
-                : typeof input.event?.properties?.time === "number" &&
-                    Number.isFinite(input.event.properties.time)
-                  ? input.event.properties.time
-                  : undefined
-
-        if (input.event.type !== "message.part.updated") {
-            return
-        }
+        const eventTime = parseEventTime(input.event)
+        if (input.event.type !== "message.part.updated") return
 
         const part = input.event.properties?.part
-        if (part?.type !== "tool" || part.tool !== "compress") {
-            return
-        }
+        if (part?.type !== "tool" || part.tool !== "compress") return
 
         if (part.state.status === "pending") {
-            if (typeof part.callID !== "string" || typeof part.messageID !== "string") {
-                return
-            }
-
-            const startedAt = eventTime ?? Date.now()
-            const key = buildCompressionTimingKey(part.messageID, part.callID)
-            if (state.compressionTiming.startsByCallId.has(key)) {
-                return
-            }
-            state.compressionTiming.startsByCallId.set(key, startedAt)
-            logger.debug("Recorded compression start", {
-                messageID: part.messageID,
-                callID: part.callID,
-                startedAt,
-            })
+            handleCompressionPending(part, eventTime, state, logger)
             return
         }
-
         if (part.state.status === "completed") {
-            if (typeof part.callID !== "string" || typeof part.messageID !== "string") {
-                return
-            }
-
-            const key = buildCompressionTimingKey(part.messageID, part.callID)
-            const start = consumeCompressionStart(state, part.messageID, part.callID)
-            const durationMs = resolveCompressionDuration(start, eventTime, part.state.time)
-            if (typeof durationMs !== "number") {
-                return
-            }
-
-            state.compressionTiming.pendingByCallId.set(key, {
-                messageId: part.messageID,
-                callId: part.callID,
-                durationMs,
-            })
-
-            const updates = applyPendingCompressionDurations(state)
-            if (updates === 0) {
-                return
-            }
-
-            await saveSessionState(state, logger)
-
-            logger.info("Attached compression time to blocks", {
-                messageID: part.messageID,
-                callID: part.callID,
-                blocks: updates,
-                durationMs,
-            })
+            await handleCompressionCompleted(part, eventTime, state, logger)
             return
         }
+        if (part.state.status === "running") return
 
-        if (part.state.status === "running") {
-            return
-        }
+        cleanupCompressionStart(part, state)
+    }
+}
 
-        if (typeof part.callID === "string" && typeof part.messageID === "string") {
-            state.compressionTiming.startsByCallId.delete(
-                buildCompressionTimingKey(part.messageID, part.callID),
-            )
-        }
+function parseEventTime(event: any): number | undefined {
+    if (typeof event?.time === "number" && Number.isFinite(event.time)) {
+        return event.time
+    }
+    if (
+        typeof event?.properties?.time === "number" &&
+        Number.isFinite(event.properties.time)
+    ) {
+        return event.properties.time
+    }
+    return undefined
+}
+
+function handleCompressionPending(part: any, eventTime: number | undefined, state: SessionState, logger: Logger): void {
+    if (typeof part.callID !== "string" || typeof part.messageID !== "string") return
+
+    const startedAt = eventTime ?? Date.now()
+    const key = buildCompressionTimingKey(part.messageID, part.callID)
+    if (state.compressionTiming.startsByCallId.has(key)) return
+
+    state.compressionTiming.startsByCallId.set(key, startedAt)
+    logger.debug("Recorded compression start", {
+        messageID: part.messageID,
+        callID: part.callID,
+        startedAt,
+    })
+}
+
+async function handleCompressionCompleted(part: any, eventTime: number | undefined, state: SessionState, logger: Logger): Promise<void> {
+    if (typeof part.callID !== "string" || typeof part.messageID !== "string") return
+
+    const key = buildCompressionTimingKey(part.messageID, part.callID)
+    const start = consumeCompressionStart(state, part.messageID, part.callID)
+    const durationMs = resolveCompressionDuration(start, eventTime, part.state.time)
+    if (typeof durationMs !== "number") return
+
+    state.compressionTiming.pendingByCallId.set(key, {
+        messageId: part.messageID,
+        callId: part.callID,
+        durationMs,
+    })
+
+    const updates = applyPendingCompressionDurations(state)
+    if (updates === 0) return
+
+    await saveSessionState(state, logger)
+
+    logger.info("Attached compression time to blocks", {
+        messageID: part.messageID,
+        callID: part.callID,
+        blocks: updates,
+        durationMs,
+    })
+}
+
+function cleanupCompressionStart(part: any, state: SessionState): void {
+    if (typeof part.callID === "string" && typeof part.messageID === "string") {
+        state.compressionTiming.startsByCallId.delete(
+            buildCompressionTimingKey(part.messageID, part.callID),
+        )
     }
 }
