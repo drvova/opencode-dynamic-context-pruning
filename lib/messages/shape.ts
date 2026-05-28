@@ -5,21 +5,23 @@ export function isMessageWithInfo(message: unknown): message is WithParts {
         return false
     }
 
-    const info = (message as any).info
-    const parts = (message as any).parts
+    const msg = message as Record<string, unknown>
+    const info = msg.info
+    const parts = msg.parts
     if (!info || typeof info !== "object") {
         return false
     }
 
+    const i = info as Record<string, unknown>
+    const t = i.time as Record<string, unknown> | undefined
     return (
-        typeof info.id === "string" &&
-        info.id.length > 0 &&
-        typeof info.sessionID === "string" &&
-        info.sessionID.length > 0 &&
-        (info.role === "user" || info.role === "assistant") &&
-        info.time &&
-        typeof info.time === "object" &&
-        typeof info.time.created === "number" &&
+        typeof i.id === "string" &&
+        i.id.length > 0 &&
+        typeof i.sessionID === "string" &&
+        i.sessionID.length > 0 &&
+        (i.role === "user" || i.role === "assistant") &&
+        !!t &&
+        typeof t.created === "number" &&
         Array.isArray(parts)
     )
 }

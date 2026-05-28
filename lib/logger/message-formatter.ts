@@ -1,54 +1,83 @@
-function formatTextPart(part: any): any | null {
+import type { Part, TextPart, ReasoningPart, ToolPart, AssistantMessage } from "@opencode-ai/sdk/v2"
+import type { WithParts } from "../state/types"
+
+interface MinimizedTextPart {
+    type: "text"
+    text: string
+    metadata?: Record<string, unknown>
+}
+
+interface MinimizedReasoningPart {
+    type: "reasoning"
+    text: string
+    metadata?: Record<string, unknown>
+}
+
+interface MinimizedToolPart {
+    type: "tool"
+    tool: string
+    callID: string
+    status?: string
+    input?: Record<string, unknown>
+    output?: string
+    error?: string
+    metadata?: Record<string, unknown>
+    title?: string
+}
+
+type MinimizedPart = MinimizedTextPart | MinimizedReasoningPart | MinimizedToolPart
+
+interface MinimizedMessage {
+    role: string
+    time?: number
+    tokens?: { input: number; output: number; reasoning: number; cache: { read: number; write: number } }
+    parts?: MinimizedPart[]
+}
+
+function formatTextPart(part: TextPart): MinimizedTextPart | null {
     if (part.ignored) return null
-    const textPart: any = { type: "text", text: part.text }
-    if (part.metadata) textPart.metadata = part.metadata
+    const textPart: MinimizedTextPart = { type: "text", text: part.text }
+    if (part.metadata) textPart.metadata = part.metadata as Record<string, unknown>
     return textPart
 }
 
-function formatReasoningPart(part: any): any | null {
-    const reasoningPart: any = { type: "reasoning", text: part.text }
-    if (part.metadata) reasoningPart.metadata = part.metadata
+function formatReasoningPart(part: ReasoningPart): MinimizedReasoningPart | null {
+    const reasoningPart: MinimizedReasoningPart = { type: "reasoning", text: part.text }
+    if (part.metadata) reasoningPart.metadata = part.metadata as Record<string, unknown>
     return reasoningPart
 }
 
-function formatToolPart(part: any): any | null {
-    const toolPart: any = {
+function formatToolPart(part: ToolPart): MinimizedToolPart | null {
+    const toolPart: MinimizedToolPart = {
         type: "tool",
         tool: part.tool,
         callID: part.callID,
     }
 
-    if (part.state?.status) {
-        toolPart.status = part.state.status
+    const { state } = part
+    toolPart.status = state.status
+    if (state.status !== "pending") {
+        toolPart.input = state.input as Record<string, unknown>
     }
-    if (part.state?.input) {
-        toolPart.input = part.state.input
+    if (state.status === "completed") {
+        toolPart.output = state.output
+        toolPart.title = state.title
+        toolPart.metadata = state.metadata as Record<string, unknown>
     }
-    if (part.state?.output) {
-        toolPart.output = part.state.output
-    }
-    if (part.state?.error) {
-        toolPart.error = part.state.error
+    if (state.status === "error") {
+        toolPart.error = state.error
+        if (state.metadata) toolPart.metadata = state.metadata as Record<string, unknown>
     }
     if (part.metadata) {
-        toolPart.metadata = part.metadata
-    }
-    if (part.state?.metadata) {
-        toolPart.metadata = {
-            ...(toolPart.metadata || {}),
-            ...part.state.metadata,
-        }
-    }
-    if (part.state?.title) {
-        toolPart.title = part.state.title
+        toolPart.metadata = { ...(toolPart.metadata || {}), ...(part.metadata as Record<string, unknown>) }
     }
 
     return toolPart
 }
 
-export function minimizeMessagesForDebug(messages: any[]): any[] {
+export function minimizeMessagesForDebug(messages: WithParts[]): MinimizedMessage[] {
     return messages.map((msg) => {
-        const minimized: any = {
+        const minimized: MinimizedMessage = {
             role: msg.info?.role,
         }
 
@@ -56,25 +85,26 @@ export function minimizeMessagesForDebug(messages: any[]): any[] {
             minimized.time = msg.info.time.created
         }
 
-        if (msg.info?.tokens) {
+        const assistant = msg.info as AssistantMessage
+        if (assistant.tokens) {
             minimized.tokens = {
-                input: msg.info.tokens.input,
-                output: msg.info.tokens.output,
-                reasoning: msg.info.tokens.reasoning,
-                cache: msg.info.tokens.cache,
+                input: assistant.tokens.input,
+                output: assistant.tokens.output,
+                reasoning: assistant.tokens.reasoning,
+                cache: assistant.tokens.cache,
             }
         }
 
         if (msg.parts) {
             minimized.parts = msg.parts
-                .map((part: any) => {
+                .map((part: Part) => {
                     if (part.type === "step-start" || part.type === "step-finish") return null
                     if (part.type === "text") return formatTextPart(part)
                     if (part.type === "reasoning") return formatReasoningPart(part)
                     if (part.type === "tool") return formatToolPart(part)
                     return null
                 })
-                .filter(Boolean)
+                .filter((p): p is MinimizedPart => p !== null)
         }
 
         return minimized

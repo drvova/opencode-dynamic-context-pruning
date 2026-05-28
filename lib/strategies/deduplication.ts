@@ -4,7 +4,7 @@ import type { SessionState, WithParts } from "../state"
 import {
     resolveToolInfo,
 } from "../protected-patterns"
-import { getTotalToolTokens } from "../token-counting-tools"
+import { getTotalToolTokens } from "../token-counting"
 
 /**
  * Deduplication strategy - prunes older tool calls that have identical

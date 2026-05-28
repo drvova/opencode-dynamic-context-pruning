@@ -47,12 +47,12 @@ import { formatTokenCount } from "../ui/utils"
 import { isIgnoredUserMessage } from "../messages/query"
 import { isMessageCompacted } from "../state/utils"
 import { countTokens } from "../token-counting"
-import { extractCompletedToolOutput } from "../token-counting-tools"
+import { extractCompletedToolOutput } from "../token-counting"
 import { getCurrentParams } from "../token-utils"
-import type { AssistantMessage, TextPart, ToolPart } from "@opencode-ai/sdk/v2"
+import type { AssistantMessage, OpencodeClient, TextPart, ToolPart } from "@opencode-ai/sdk/v2"
 
 export interface ContextCommandContext {
-    client: any
+    client: OpencodeClient
     state: SessionState
     logger: Logger
     sessionId: string

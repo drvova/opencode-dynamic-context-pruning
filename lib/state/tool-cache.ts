@@ -1,23 +1,13 @@
 import type { SessionState, ToolParameterEntry, ToolStatus, WithParts } from "./types"
+import type { ToolPart } from "@opencode-ai/sdk/v2"
 import type { Logger } from "../logger"
 import { PluginConfig } from "../config"
 import { getMessageParts } from "./utils"
-import { countToolTokens } from "../token-counting-tools"
+import { countToolTokens } from "../token-counting"
 
 const MAX_TOOL_CACHE_SIZE = 1000
 
-interface ToolPartLike {
-    type: "tool"
-    callID: string
-    tool: string
-    state?: {
-        input?: any
-        status?: string
-        error?: string
-    }
-}
-
-function isToolPart(part: { type?: string; callID?: string }): part is ToolPartLike {
+function isToolPart(part: { type?: string; callID?: string }): part is ToolPart {
     return part.type === "tool" && !!part.callID
 }
 
@@ -27,22 +17,22 @@ function isTurnProtected(config: PluginConfig, state: SessionState, turn: number
 }
 
 function buildToolCacheEntry(
-    part: ToolPartLike,
+    part: ToolPart,
     turn: number,
     tokenCount?: number,
 ): ToolParameterEntry {
     return {
         tool: part.tool,
-        parameters: part.state?.input ?? {},
-        status: part.state?.status as ToolStatus | undefined,
-        error: part.state?.status === "error" ? part.state?.error : undefined,
+        parameters: part.state.status !== "pending" ? part.state.input : {},
+        status: part.state.status as ToolStatus,
+        error: part.state.status === "error" ? part.state.error : undefined,
         turn,
         tokenCount,
     }
 }
 
 interface CollectedToolPart {
-    part: ToolPartLike
+    part: ToolPart
     turn: number
 }
 
@@ -88,7 +78,7 @@ function shouldSkipToolPart(
 function cacheToolPart(
     state: SessionState,
     logger: Logger,
-    part: ToolPartLike,
+    part: ToolPart,
     turn: number,
 ): void {
     const tokenCount = countToolTokens(part)

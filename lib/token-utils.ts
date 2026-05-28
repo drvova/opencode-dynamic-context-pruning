@@ -1,7 +1,6 @@
 import { SessionState, WithParts } from "./state/types"
 import { AssistantMessage } from "@opencode-ai/sdk/v2"
 export * from "./token-counting"
-export * from "./token-counting-tools"
 export { getCurrentParams } from "./token-params"
 
 function isBeforeCompaction(state: SessionState, msg: WithParts): boolean {

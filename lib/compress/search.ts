@@ -2,7 +2,7 @@ import type { SessionState, WithParts } from "../state"
 import { formatBlockRef, parseBoundaryId, type ParsedBoundaryId } from "../message-ids"
 import { isIgnoredUserMessage } from "../messages/query"
 import { filterMessages } from "../messages/shape"
-import { countAllMessageTokens } from "../token-counting-tools"
+import { countAllMessageTokens } from "../token-counting"
 import type { BoundaryReference, SearchContext, SelectionResolution } from "./types"
 
 export async function fetchSessionMessages(client: any, sessionId: string): Promise<WithParts[]> {

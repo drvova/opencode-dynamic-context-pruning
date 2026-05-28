@@ -143,7 +143,7 @@ const VALID_CONFIG_KEYS = new Set([
     "strategies.toolCallPruning.protectedTools",
 ])
 
-function getConfigKeyPaths(obj: Record<string, any>, prefix = ""): string[] {
+function getConfigKeyPaths(obj: Record<string, unknown>, prefix = ""): string[] {
     const keys: string[] = []
     for (const key of Object.keys(obj)) {
         const fullKey = prefix ? `${prefix}.${key}` : key
@@ -155,13 +155,13 @@ function getConfigKeyPaths(obj: Record<string, any>, prefix = ""): string[] {
         }
 
         if (obj[key] && typeof obj[key] === "object" && !Array.isArray(obj[key])) {
-            keys.push(...getConfigKeyPaths(obj[key], fullKey))
+            keys.push(...getConfigKeyPaths(obj[key] as Record<string, unknown>, fullKey))
         }
     }
     return keys
 }
 
-function getInvalidConfigKeys(userConfig: Record<string, any>): string[] {
+function getInvalidConfigKeys(userConfig: Record<string, unknown>): string[] {
     const userKeys = getConfigKeyPaths(userConfig)
     return userKeys.filter((key) => !VALID_CONFIG_KEYS.has(key))
 }
@@ -239,13 +239,13 @@ function validateNested(
     value: unknown,
     key: string,
     errors: ValidationError[],
-    validate: (obj: Record<string, any>) => void,
+    validate: (obj: Record<string, unknown>) => void,
 ): void {
     if (value === undefined) return
     if (typeof value !== "object" || value === null || Array.isArray(value)) {
         errors.push({ key, expected: "object", actual: typeof value })
     } else {
-        validate(value as Record<string, any>)
+        validate(value as Record<string, unknown>)
     }
 }
 
@@ -253,13 +253,13 @@ function validateNestedIfTruthy(
     value: unknown,
     key: string,
     errors: ValidationError[],
-    validate: (obj: Record<string, any>) => void,
+    validate: (obj: Record<string, unknown>) => void,
 ): void {
     if (!value) return
     if (typeof value !== "object" || value === null || Array.isArray(value)) {
         errors.push({ key, expected: "object", actual: typeof value })
     } else {
-        validate(value as Record<string, any>)
+        validate(value as Record<string, unknown>)
     }
 }
 
@@ -310,7 +310,7 @@ function validateModelLimits(
 
 // --- Main validation ---
 
-function validateConfigTypes(config: Record<string, any>): ValidationError[] {
+function validateConfigTypes(config: Record<string, unknown>): ValidationError[] {
     const errors: ValidationError[] = []
 
     validateBoolean(config.enabled, "enabled", errors)
@@ -356,8 +356,9 @@ function validateConfigTypes(config: Record<string, any>): ValidationError[] {
     })
 
     validateNestedIfTruthy(config.strategies, "strategies", errors, (s) => {
-        validateBoolean(s.deduplication?.enabled, "strategies.deduplication.enabled", errors)
-        validateStringArray(s.deduplication?.protectedTools, "strategies.deduplication.protectedTools", errors)
+        const dedup = s.deduplication as Record<string, unknown> | undefined
+        validateBoolean(dedup?.enabled, "strategies.deduplication.enabled", errors)
+        validateStringArray(dedup?.protectedTools, "strategies.deduplication.protectedTools", errors)
 
         validateNestedIfTruthy(s.purgeErrors, "strategies.purgeErrors", errors, (pe) => {
             validateBoolean(pe.enabled, "strategies.purgeErrors.enabled", errors)
@@ -378,7 +379,7 @@ function validateConfigTypes(config: Record<string, any>): ValidationError[] {
 function showConfigWarnings(
     ctx: PluginInput,
     configPath: string,
-    configData: Record<string, any>,
+    configData: Record<string, unknown>,
     isProject: boolean,
 ): void {
     const invalidKeys = getInvalidConfigKeys(configData)
@@ -540,7 +541,7 @@ function createDefaultConfig(): void {
 }
 
 interface ConfigLoadResult {
-    data: Record<string, any> | null
+    data: Record<string, unknown> | null
     parseError?: string
 }
 
@@ -558,8 +559,8 @@ function loadConfigFile(configPath: string): ConfigLoadResult {
             return { data: null, parseError: "Config file is empty or invalid" }
         }
         return { data: parsed }
-    } catch (error: any) {
-        return { data: null, parseError: error.message || "Failed to parse config" }
+    } catch (error: unknown) {
+        return { data: null, parseError: error instanceof Error ? error.message : "Failed to parse config" }
     }
 }
 
@@ -699,24 +700,24 @@ function deepCloneConfig(config: PluginConfig): PluginConfig {
     }
 }
 
-function mergeLayer(config: PluginConfig, data: Record<string, any>): PluginConfig {
+function mergeLayer(config: PluginConfig, data: Partial<PluginConfig>): PluginConfig {
     return {
         enabled: data.enabled ?? config.enabled,
         debug: data.debug ?? config.debug,
         pruneNotification: data.pruneNotification ?? config.pruneNotification,
         pruneNotificationType: data.pruneNotificationType ?? config.pruneNotificationType,
-        commands: mergeCommands(config.commands, data.commands as any),
-        manualMode: mergeManualMode(config.manualMode, data.manualMode as any),
+        commands: mergeCommands(config.commands, data.commands),
+        manualMode: mergeManualMode(config.manualMode, data.manualMode),
         turnProtection: {
             enabled: data.turnProtection?.enabled ?? config.turnProtection.enabled,
             turns: data.turnProtection?.turns ?? config.turnProtection.turns,
         },
-        experimental: mergeExperimental(config.experimental, data.experimental as any),
+        experimental: mergeExperimental(config.experimental, data.experimental),
         protectedFilePatterns: [
             ...new Set([...config.protectedFilePatterns, ...(data.protectedFilePatterns ?? [])]),
         ],
-        compress: mergeCompress(config.compress, data.compress as CompressOverride),
-        strategies: mergeStrategies(config.strategies, data.strategies as any),
+        compress: mergeCompress(config.compress, data.compress),
+        strategies: mergeStrategies(config.strategies, data.strategies),
     }
 }
 
@@ -769,7 +770,7 @@ export function getConfig(ctx: PluginInput): PluginConfig {
         }
 
         showConfigWarnings(ctx, layer.path, result.data, layer.isProject)
-        config = mergeLayer(config, result.data)
+        config = mergeLayer(config, result.data as Partial<PluginConfig>)
     }
 
     return config
