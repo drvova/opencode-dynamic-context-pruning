@@ -92,7 +92,7 @@ const PARAM_EXTRACTORS: Record<string, (params: Record<string, unknown>) => stri
     webfetch: (p) => (p.url as string) || "",
     websearch: formatQueryParam,
     codesearch: formatQueryParam,
-    todowrite: (p) => `${(p.todos as unknown[])?.length || 0} todos`,
+    todowrite: (p) => `${Array.isArray(p.todos) ? p.todos.length : 0} todos`,
     todoread: () => "read todo list",
     task: (p) => (p.description as string) || "",
     skill: (p) => (p.name as string) || "",

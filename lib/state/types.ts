@@ -1,5 +1,5 @@
 import type { CompressionTimingState } from "../compress/timing"
-import { Message, Part } from "@opencode-ai/sdk/v2"
+import type { Message, Part } from "@opencode-ai/sdk/v2"
 
 export interface WithParts {
     info: Message

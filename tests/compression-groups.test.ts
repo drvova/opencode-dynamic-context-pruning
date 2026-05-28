@@ -8,6 +8,7 @@ import { createCompressRangeTool } from "../lib/compress/range"
 import { handleDecompressCommand } from "../lib/commands/decompress"
 import { handleRecompressCommand } from "../lib/commands/recompress"
 import { createSessionState, type WithParts } from "../lib/state"
+import type { ToolContext } from "../lib/compress/types"
 import type { PluginConfig } from "../lib/config"
 import { Logger } from "../lib/logger"
 
@@ -197,7 +198,7 @@ test("compression notifications increment by tool call across range and message 
                 return { compressRange: "", compressMessage: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     await rangeTool.execute(
         {
@@ -231,7 +232,7 @@ test("compression notifications increment by tool call across range and message 
                 return { compressRange: "", compressMessage: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     await messageTool.execute(
         {
@@ -289,7 +290,7 @@ test("decompress groups batched message compressions by tool call", async () => 
                 return { compressRange: "", compressMessage: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     await tool.execute(
         {
@@ -389,7 +390,7 @@ test("decompress keeps batched ranges individually restorable", async () => {
                 return { compressRange: "", compressMessage: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     await tool.execute(
         {

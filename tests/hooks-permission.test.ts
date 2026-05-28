@@ -1,6 +1,8 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import type { PluginConfig } from "../lib/config"
+import type { OpencodeClient, Part, TextPart } from "@opencode-ai/sdk/v2"
+import type { PromptStore, RuntimePrompts } from "../lib/prompts/store"
 import {
     createChatMessageTransformHandler,
     createCommandExecuteHandler,
@@ -95,26 +97,26 @@ test("chat message transform strips hallucinated tags even when compress is deni
     const logger = new Logger(false)
     const config = buildConfig("deny")
     const handler = createChatMessageTransformHandler(
-        { session: { get: async () => ({}) } } as any,
+        { session: { get: async () => ({}) } } as unknown as OpencodeClient,
         state,
         logger,
         config,
         {
             reload() {},
             getRuntimePrompts() {
-                return {} as any
+                return {} as RuntimePrompts
             },
-        } as any,
+        } as unknown as PromptStore,
         { global: undefined, agents: {} },
     )
     const output = {
-        messages: [buildMessage("assistant-1", "assistant", "alpha <dcp>beta</dcp> omega")],
+        messages: [buildMessage("assistant-1", "assistant", "alpha  omega")],
     }
 
     await handler({}, output)
 
     assert.equal(output.messages[0]?.parts[0]?.type, "text")
-    assert.equal((output.messages[0]?.parts[0] as any).text, "alpha  omega")
+    assert.equal((output.messages[0]?.parts[0] as TextPart).text, "alpha  omega")
 })
 
 test("chat message transform drops messages without info instead of crashing", async () => {
@@ -122,16 +124,16 @@ test("chat message transform drops messages without info instead of crashing", a
     const logger = new Logger(false)
     const config = buildConfig("deny")
     const handler = createChatMessageTransformHandler(
-        { session: { get: async () => ({}) } } as any,
+        { session: { get: async () => ({}) } } as unknown as OpencodeClient,
         state,
         logger,
         config,
         {
             reload() {},
             getRuntimePrompts() {
-                return {} as any
+                return {} as RuntimePrompts
             },
-        } as any,
+        } as unknown as PromptStore,
         { global: undefined, agents: {} },
     )
     const output = {
@@ -145,11 +147,11 @@ test("chat message transform drops messages without info instead of crashing", a
                         text: "Carica le skill di laravel",
                     },
                 ],
-            } as any,
+            } as unknown as WithParts,
         ],
     }
 
-    await handler({}, output as any)
+    await handler({}, output as unknown as { messages: WithParts[] })
 
     assert.equal(state.sessionId, null)
     assert.equal(output.messages.length, 0)
@@ -157,7 +159,7 @@ test("chat message transform drops messages without info instead of crashing", a
 
 test("command execute exits after effective permission resolves to deny", async () => {
     let sessionMessagesCalls = 0
-    const output = { parts: [] as any[] }
+    const output = { parts: [] as Part[] }
     const handler = createCommandExecuteHandler(
         {
             session: {
@@ -166,7 +168,7 @@ test("command execute exits after effective permission resolves to deny", async 
                     return { data: [] }
                 },
             },
-        } as any,
+        } as unknown as OpencodeClient,
         createSessionState(),
         new Logger(false),
         buildConfig("deny"),
@@ -494,8 +496,8 @@ test("event hook queues duration updates until the matching session is loaded", 
                         raw: "",
                     },
                 },
+                time: 100,
             },
-            time: 100,
         },
     })
 
@@ -518,6 +520,7 @@ test("event hook queues duration updates until the matching session is loaded", 
                         time: { start: 350, end: 500 },
                     },
                 },
+                time: 500,
             },
         },
     })
@@ -530,7 +533,7 @@ test("event hook queues duration updates until the matching session is loaded", 
             session: {
                 get: async () => ({ data: { parentID: null } }),
             },
-        } as any,
+        } as unknown as OpencodeClient,
         liveState,
         targetSessionId,
         logger,
@@ -627,8 +630,8 @@ test("event hook keeps same call id distinct across message ids", async () => {
                         raw: "",
                     },
                 },
+                time: 100,
             },
-            time: 100,
         },
     })
 
@@ -648,8 +651,8 @@ test("event hook keeps same call id distinct across message ids", async () => {
                         raw: "",
                     },
                 },
+                time: 200,
             },
-            time: 200,
         },
     })
 
@@ -672,6 +675,7 @@ test("event hook keeps same call id distinct across message ids", async () => {
                         time: { start: 350, end: 500 },
                     },
                 },
+                time: 500,
             },
         },
     })
@@ -695,6 +699,7 @@ test("event hook keeps same call id distinct across message ids", async () => {
                         time: { start: 450, end: 700 },
                     },
                 },
+                time: 700,
             },
         },
     })

@@ -1,7 +1,7 @@
 import type { SessionState, WithParts } from "./state"
 import type { Logger } from "./logger"
 import type { PluginConfig } from "./config"
-import type { OpencodeClient, Part } from "@opencode-ai/sdk/v2"
+import type { Event, OpencodeClient, Part, ToolPart } from "@opencode-ai/sdk/v2"
 import { assignMessageRefs } from "./message-ids"
 import {
     buildPriorityMap,
@@ -50,26 +50,6 @@ interface DcpCommandContext {
     messages: WithParts[]
 }
 
-interface DcpEventPart {
-    type?: string
-    tool?: string
-    callID?: string
-    messageID?: string
-    state?: {
-        status?: string
-        time?: { start?: unknown; end?: unknown }
-        [key: string]: unknown
-    }
-}
-
-interface DcpEvent {
-    type?: string
-    time?: number
-    properties?: {
-        time?: number
-        part?: DcpEventPart
-    }
-}
 
 const INTERNAL_AGENT_SIGNATURES = [
     "You are a title generator",
@@ -355,45 +335,30 @@ export function createTextCompleteHandler() {
 }
 
 export function createEventHandler(state: SessionState, logger: Logger) {
-    return async (input: { event: DcpEvent }) => {
-        const eventTime = parseEventTime(input.event)
+    return async (input: { event: Event }) => {
         if (input.event.type !== "message.part.updated") return
 
-        const part = input.event.properties?.part
-        if (part?.type !== "tool" || part.tool !== "compress") return
+        const { part, time: eventTime } = input.event.properties
+        if (part.type !== "tool" || part.tool !== "compress") return
 
-        if (!part.state) return
-        if (part.state.status === "pending") {
+        const { state: toolState } = part
+        if (toolState.status === "pending") {
             handleCompressionPending(part, eventTime, state, logger)
             return
         }
-        if (part.state.status === "completed") {
+        if (toolState.status === "completed") {
             await handleCompressionCompleted(part, eventTime, state, logger)
             return
         }
-        if (part.state.status === "running") return
+        if (toolState.status === "running") return
 
         cleanupCompressionStart(part, state)
     }
 }
 
-function parseEventTime(event: DcpEvent): number | undefined {
-    if (typeof event?.time === "number" && Number.isFinite(event.time)) {
-        return event.time
-    }
-    if (
-        typeof event?.properties?.time === "number" &&
-        Number.isFinite(event.properties.time)
-    ) {
-        return event.properties.time
-    }
-    return undefined
-}
 
-function handleCompressionPending(part: DcpEventPart, eventTime: number | undefined, state: SessionState, logger: Logger): void {
-    if (typeof part.callID !== "string" || typeof part.messageID !== "string") return
-
-    const startedAt = eventTime ?? Date.now()
+function handleCompressionPending(part: ToolPart, eventTime: number, state: SessionState, logger: Logger): void {
+    const startedAt = eventTime || Date.now()
     const key = buildCompressionTimingKey(part.messageID, part.callID)
     if (state.compressionTiming.startsByCallId.has(key)) return
 
@@ -405,12 +370,12 @@ function handleCompressionPending(part: DcpEventPart, eventTime: number | undefi
     })
 }
 
-async function handleCompressionCompleted(part: DcpEventPart, eventTime: number | undefined, state: SessionState, logger: Logger): Promise<void> {
-    if (typeof part.callID !== "string" || typeof part.messageID !== "string") return
+async function handleCompressionCompleted(part: ToolPart, eventTime: number, state: SessionState, logger: Logger): Promise<void> {
+    if (part.state.status !== "completed") return
 
     const key = buildCompressionTimingKey(part.messageID, part.callID)
     const start = consumeCompressionStart(state, part.messageID, part.callID)
-    const durationMs = resolveCompressionDuration(start, eventTime, part.state?.time)
+    const durationMs = resolveCompressionDuration(start, eventTime, part.state.time)
     if (typeof durationMs !== "number") return
 
     state.compressionTiming.pendingByCallId.set(key, {
@@ -432,10 +397,8 @@ async function handleCompressionCompleted(part: DcpEventPart, eventTime: number 
     })
 }
 
-function cleanupCompressionStart(part: DcpEventPart, state: SessionState): void {
-    if (typeof part.callID === "string" && typeof part.messageID === "string") {
-        state.compressionTiming.startsByCallId.delete(
-            buildCompressionTimingKey(part.messageID, part.callID),
-        )
-    }
+function cleanupCompressionStart(part: ToolPart, state: SessionState): void {
+    state.compressionTiming.startsByCallId.delete(
+        buildCompressionTimingKey(part.messageID, part.callID),
+    )
 }

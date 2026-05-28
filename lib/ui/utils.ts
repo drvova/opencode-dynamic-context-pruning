@@ -1,4 +1,4 @@
-import { SessionState, ToolParameterEntry, WithParts } from "../state"
+import type { SessionState, ToolParameterEntry, WithParts } from "../state"
 import type { AssistantMessage } from "@opencode-ai/sdk/v2"
 import { countTokens } from "../token-counting"
 import { isIgnoredUserMessage } from "../messages/query"
@@ -82,7 +82,7 @@ function collectFirstUserText(messages: WithParts[]): string {
         const parts = Array.isArray(msg.parts) ? msg.parts : []
         let text = ""
         for (const part of parts) {
-            if (part.type === "text" && !(part as any).ignored) {
+            if (part.type === "text" && !(part as import("@opencode-ai/sdk/v2").TextPart).ignored) {
                 text += part.text
             }
         }

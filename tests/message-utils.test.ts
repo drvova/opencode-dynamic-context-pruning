@@ -8,10 +8,11 @@ import {
 } from "../lib/messages/query"
 import type { PluginConfig } from "../lib/config"
 import type { WithParts } from "../lib/state"
+import type { TextPart, ToolPart } from "@opencode-ai/sdk/v2"
 
 const SESSION_ID = "ses_message_utils"
 
-function buildInfo(role: "user" | "assistant", overrides?: Record<string, any>) {
+function buildInfo(role: "user" | "assistant", overrides?: Record<string, unknown>) {
     const base =
         role === "user"
             ? {
@@ -35,7 +36,7 @@ function buildInfo(role: "user" | "assistant", overrides?: Record<string, any>) 
 function buildMessage(
     role: "user" | "assistant",
     parts: WithParts["parts"],
-    infoOverrides?: Record<string, any>,
+    infoOverrides?: Record<string, unknown>,
 ): WithParts {
     return {
         info: buildInfo(role, infoOverrides),
@@ -43,19 +44,22 @@ function buildMessage(
     }
 }
 
-function textPart(text: string, ignored?: boolean): any {
-    const part: any = { type: "text", text }
+function textPart(text: string, ignored?: boolean): TextPart {
+    const part: TextPart = { type: "text", text, id: "", messageID: "", sessionID: "" }
     if (ignored) part.ignored = true
     return part
 }
 
-function toolPart(tool: string, status: string): any {
+function toolPart(tool: string, status: string): ToolPart {
     return {
         type: "tool",
         tool,
         callID: `call-${tool}`,
-        state: { status },
-    }
+        id: "",
+        messageID: "",
+        sessionID: "",
+        state: { status, input: {} },
+    } as ToolPart
 }
 
 function buildCompressConfig(overrides?: Partial<PluginConfig["compress"]>): PluginConfig["compress"] {
@@ -121,8 +125,8 @@ test("isIgnoredUserMessage: user with non-ignored parts", () => {
 })
 
 test("isIgnoredUserMessage: message without valid info returns false", () => {
-    assert.equal(isIgnoredUserMessage({ info: null, parts: [] } as any), false)
-    assert.equal(isIgnoredUserMessage({} as any), false)
+    assert.equal(isIgnoredUserMessage({ info: null, parts: [] } as unknown as WithParts), false)
+    assert.equal(isIgnoredUserMessage({} as unknown as WithParts), false)
 })
 
 // --- getLastUserMessage ---
@@ -200,11 +204,11 @@ test("messageHasCompress: false for assistant with non-completed compress tool",
 })
 
 test("messageHasCompress: false when message has invalid shape", () => {
-    assert.equal(messageHasCompress({ info: null, parts: [] } as any), false)
+    assert.equal(messageHasCompress({ info: null, parts: [] } as unknown as WithParts), false)
 })
 
 test("messageHasCompress: false when no parts array", () => {
-    const msg = { info: buildInfo("assistant"), parts: undefined } as any
+    const msg = { info: buildInfo("assistant"), parts: undefined } as unknown as WithParts
     assert.equal(messageHasCompress(msg), false)
 })
 
@@ -242,5 +246,5 @@ test("isProtectedUserMessage: false for assistant messages", () => {
 
 test("isProtectedUserMessage: false for invalid shape", () => {
     const config = buildConfig({ mode: "message", protectUserMessages: true })
-    assert.equal(isProtectedUserMessage(config, { info: null } as any), false)
+    assert.equal(isProtectedUserMessage(config, { info: null } as unknown as WithParts), false)
 })

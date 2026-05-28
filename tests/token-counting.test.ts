@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import type { WithParts } from "../lib/state"
+import type { Part } from "@opencode-ai/sdk/v2"
 import {
     COMPACTED_TOOL_OUTPUT_PLACEHOLDER,
     countAllMessageTokens,
@@ -10,7 +11,7 @@ import {
     extractToolContent,
 } from "../lib/token-utils"
 
-function buildToolMessage(part: Record<string, any>): WithParts {
+function buildToolMessage(part: Part): WithParts {
     return {
         info: {
             id: "msg-tool",
@@ -19,11 +20,11 @@ function buildToolMessage(part: Record<string, any>): WithParts {
             agent: "assistant",
             time: { created: 1 },
         } as WithParts["info"],
-        parts: [part as any],
+        parts: [part],
     }
 }
 
-function buildToolPart(tool: string, state: Record<string, any>) {
+function buildToolPart(tool: string, state: Record<string, unknown>) {
     return {
         id: `tool-${tool}`,
         messageID: "msg-tool",
@@ -32,10 +33,10 @@ function buildToolPart(tool: string, state: Record<string, any>) {
         tool,
         callID: `call-${tool}`,
         state,
-    }
+    } as Part
 }
 
-function assertCounted(part: Record<string, any>, expectedContents: string[]) {
+function assertCounted(part: Part, expectedContents: string[]) {
     assert.deepEqual(extractToolContent(part), expectedContents)
     assert.equal(countToolTokens(part), estimateTokensBatch(expectedContents))
     assert.equal(

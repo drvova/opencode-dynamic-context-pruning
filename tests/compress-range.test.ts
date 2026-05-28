@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import { mkdirSync } from "node:fs"
 import { createCompressRangeTool } from "../lib/compress/range"
 import { createSessionState, type WithParts } from "../lib/state"
+import type { ToolContext } from "../lib/compress/types"
 import type { PluginConfig } from "../lib/config"
 import { Logger } from "../lib/logger"
 
@@ -154,7 +155,7 @@ test("compress range rebuilds subagent message refs after session state was rese
                 return { compressRange: "", compressMessage: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     const result = await tool.execute(
         {
@@ -214,7 +215,7 @@ test("compress range mode batches multiple ranges into one notification", async 
                 return { compressRange: "", compressMessage: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     const result = await tool.execute(
         {
@@ -271,7 +272,7 @@ test("compress range mode rejects overlapping batched ranges", async () => {
                 return { compressRange: "", compressMessage: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     await assert.rejects(
         tool.execute(

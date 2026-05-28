@@ -1,5 +1,5 @@
-import { PluginConfig } from "../config"
-import { Logger } from "../logger"
+import type { PluginConfig } from "../config"
+import type { Logger } from "../logger"
 import type { SessionState, WithParts } from "../state"
 import {
     resolveToolInfo,

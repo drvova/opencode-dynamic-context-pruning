@@ -7,8 +7,8 @@ import {
     formatStatsHeader,
     formatTokenCount,
 } from "./utils"
-import { ToolParameterEntry } from "../state"
-import { PluginConfig } from "../config"
+import type { ToolParameterEntry } from "../state"
+import type { PluginConfig } from "../config"
 import { getActiveSummaryTokenUsage } from "../state/utils"
 
 export interface PromptParams {

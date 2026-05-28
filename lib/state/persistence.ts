@@ -253,7 +253,7 @@ export async function loadAllSessionStats(logger: Logger): Promise<AggregatedSta
             }
         }
 
-        logger.debug("Loaded all-time stats", result as unknown as Record<string, unknown>)
+        logger.debug("Loaded all-time stats", { ...result })
     } catch (error: unknown) {
         logger.warn("Failed to load all-time stats", { error: error instanceof Error ? error.message : String(error) })
     }

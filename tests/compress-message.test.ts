@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import { mkdirSync } from "node:fs"
 import { createCompressMessageTool } from "../lib/compress/message"
 import { createSessionState, type WithParts } from "../lib/state"
+import type { ToolContext } from "../lib/compress/types"
 import type { PluginConfig } from "../lib/config"
 import { Logger } from "../lib/logger"
 
@@ -157,7 +158,7 @@ test("compress message tool appends non-editable format extension", () => {
                 return { compressMessage: "", compressRange: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     assert.match(tool.description, /THE FORMAT OF COMPRESS/)
     assert.match(tool.description, /messageId: string/)
@@ -185,7 +186,7 @@ test("compress message mode batches individual message summaries", async () => {
                 return { compressMessage: "", compressRange: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     const result = await tool.execute(
         {
@@ -253,7 +254,7 @@ test("compress message mode stores call id for later duration attachment", async
                 return { compressMessage: "", compressRange: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     await tool.execute(
         {
@@ -308,7 +309,7 @@ test("compress message mode does not partially apply when preparation fails", as
                 return { compressMessage: "", compressRange: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     await assert.rejects(
         tool.execute(
@@ -361,7 +362,7 @@ test("compress message mode rejects compressed block ids", async () => {
                 return { compressMessage: "", compressRange: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     await assert.rejects(
         tool.execute(
@@ -410,7 +411,7 @@ test("compress message mode skips protected user message references", async () =
                 return { compressMessage: "", compressRange: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     const result = await tool.execute(
         {
@@ -494,7 +495,7 @@ test("compress message mode allows messages containing compress tool parts", asy
                 return { compressMessage: "", compressRange: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     const result = await tool.execute(
         {
@@ -552,7 +553,7 @@ test("compress message mode sends one aggregated notification for batched messag
                 return { compressMessage: "", compressRange: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     await tool.execute(
         {
@@ -607,7 +608,7 @@ test("compress message mode skips messages that are already actively compressed"
                 return { compressMessage: "", compressRange: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     await tool.execute(
         {
@@ -679,7 +680,7 @@ test("compress message mode skips invalid batch entries and reports issues", asy
                 return { compressMessage: "", compressRange: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     const result = await tool.execute(
         {
@@ -744,7 +745,7 @@ test("compress message mode reports issues when every batch entry is skipped", a
                 return { compressMessage: "", compressRange: "" }
             },
         },
-    } as any)
+    } as unknown as ToolContext)
 
     await assert.rejects(
         tool.execute(

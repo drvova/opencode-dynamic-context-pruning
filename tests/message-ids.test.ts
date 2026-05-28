@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import { Logger } from "../lib/logger"
 import { assignMessageRefs } from "../lib/message-ids"
 import { checkSession, createSessionState, type WithParts } from "../lib/state"
@@ -71,7 +72,7 @@ test("checkSession resets message id aliases after native compaction", async () 
     state.messageIds.byRef.set("m9999", "old-message-9999")
     state.messageIds.nextRef = 9999
 
-    await checkSession({} as any, state, logger, messages, false)
+    await checkSession({} as unknown as OpencodeClient, state, logger, messages, false)
 
     assert.equal(state.lastCompaction, 2)
     assert.equal(state.messageIds.byRawId.size, 0)

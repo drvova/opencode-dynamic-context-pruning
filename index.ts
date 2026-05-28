@@ -1,4 +1,4 @@
-import type { Plugin, Config as OpencodePluginConfig } from "@opencode-ai/plugin"
+import type { Plugin, PluginInput, Hooks, Config as OpencodePluginConfig } from "@opencode-ai/plugin"
 import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import { getConfig } from "./lib/config"
 import { createCompressMessageTool, createCompressRangeTool } from "./lib/compress"
@@ -89,7 +89,7 @@ function extractAgentPermissions(
     )
 }
 
-const server: Plugin = (async (ctx) => {
+const server: Plugin = async (ctx) => {
     const config = getConfig(ctx)
 
     if (!config.enabled) {
@@ -137,7 +137,7 @@ const server: Plugin = (async (ctx) => {
             config,
             prompts,
             hostPermissions,
-        ) as any,
+        ) as Hooks["experimental.chat.messages.transform"],
         "experimental.text.complete": createTextCompleteHandler(),
         "command.execute.before": createCommandExecuteHandler(
             client,
@@ -147,7 +147,7 @@ const server: Plugin = (async (ctx) => {
             ctx.directory,
             hostPermissions,
         ),
-        event: createEventHandler(state, logger) as (input: { event: import("@opencode-ai/sdk").Event }) => Promise<void>,
+        event: createEventHandler(state, logger) as Hooks["event"],
         tool: {
             ...(config.compress.permission !== "deny" && {
                 compress:
@@ -156,7 +156,7 @@ const server: Plugin = (async (ctx) => {
                         : createCompressRangeTool(compressToolContext),
             }),
         },
-        config: async (opencodeConfig) => {
+        config: async (opencodeConfig: OpencodePluginConfig) => {
             disableCompressIfNeeded(config, opencodeConfig)
             registerDcpCommandIfEnabled(config, opencodeConfig)
             addCompressToPrimaryToolsIfNeeded(config, opencodeConfig)
@@ -165,6 +165,6 @@ const server: Plugin = (async (ctx) => {
             hostPermissions.agents = extractAgentPermissions(opencodeConfig)
         },
     }
-}) satisfies Plugin
+}
 
 export default server
