@@ -1,4 +1,5 @@
 import type { Logger } from "../../logger"
+import type { Part, ToolPart } from "@opencode-ai/sdk/v2"
 import type { SessionState, WithParts } from "../../state"
 import { filterMessages } from "../shape"
 import {
@@ -16,6 +17,80 @@ async function fetchSubAgentMessages(client: any, sessionId: string): Promise<Wi
     return filterMessages(response?.data || response)
 }
 
+type CompletedTaskToolPart = ToolPart & {
+    tool: "task"
+    state: ToolPart["state"] & {
+        status: "completed"
+        output: string
+    }
+}
+
+function isValidCompletedTaskPart(
+    part: Part,
+    pruneTools: Map<string, number>,
+): part is CompletedTaskToolPart {
+    if (part.type !== "tool" || part.tool !== "task" || !part.callID) {
+        return false
+    }
+    if (pruneTools.has(part.callID)) {
+        return false
+    }
+    if (part.state?.status !== "completed" || typeof part.state.output !== "string") {
+        return false
+    }
+    return true
+}
+
+function tryApplyCachedSubAgentResult(
+    part: CompletedTaskToolPart,
+    cache: Map<string, string>,
+): boolean {
+    const cachedResult = cache.get(part.callID)
+    if (cachedResult !== undefined) {
+        if (cachedResult) {
+            part.state.output = stripHallucinationsFromString(
+                mergeSubagentResult(part.state.output, cachedResult),
+            )
+        }
+        return true
+    }
+    return false
+}
+
+async function fetchAndMergeSubAgentResult(
+    part: CompletedTaskToolPart,
+    client: any,
+    cache: Map<string, string>,
+    logger: Logger,
+): Promise<void> {
+    const subAgentSessionId = getSubAgentId(part)
+    if (!subAgentSessionId) {
+        return
+    }
+
+    let subAgentMessages: WithParts[] = []
+    try {
+        subAgentMessages = await fetchSubAgentMessages(client, subAgentSessionId)
+    } catch (error) {
+        logger.warn("Failed to fetch subagent session for output expansion", {
+            subAgentSessionId,
+            callID: part.callID,
+            error: error instanceof Error ? error.message : String(error),
+        })
+        return
+    }
+
+    const subAgentResultText = buildSubagentResultText(subAgentMessages)
+    if (!subAgentResultText) {
+        return
+    }
+
+    cache.set(part.callID, subAgentResultText)
+    part.state.output = stripHallucinationsFromString(
+        mergeSubagentResult(part.state.output, subAgentResultText),
+    )
+}
+
 export const injectExtendedSubAgentResults = async (
     client: any,
     state: SessionState,
@@ -31,52 +106,15 @@ export const injectExtendedSubAgentResults = async (
         const parts = Array.isArray(message.parts) ? message.parts : []
 
         for (const part of parts) {
-            if (part.type !== "tool" || part.tool !== "task" || !part.callID) {
-                continue
-            }
-            if (state.prune.tools.has(part.callID)) {
-                continue
-            }
-            if (part.state?.status !== "completed" || typeof part.state.output !== "string") {
+            if (!isValidCompletedTaskPart(part, state.prune.tools)) {
                 continue
             }
 
-            const cachedResult = state.subAgentResultCache.get(part.callID)
-            if (cachedResult !== undefined) {
-                if (cachedResult) {
-                    part.state.output = stripHallucinationsFromString(
-                        mergeSubagentResult(part.state.output, cachedResult),
-                    )
-                }
+            if (tryApplyCachedSubAgentResult(part, state.subAgentResultCache)) {
                 continue
             }
 
-            const subAgentSessionId = getSubAgentId(part)
-            if (!subAgentSessionId) {
-                continue
-            }
-
-            let subAgentMessages: WithParts[] = []
-            try {
-                subAgentMessages = await fetchSubAgentMessages(client, subAgentSessionId)
-            } catch (error) {
-                logger.warn("Failed to fetch subagent session for output expansion", {
-                    subAgentSessionId,
-                    callID: part.callID,
-                    error: error instanceof Error ? error.message : String(error),
-                })
-                continue
-            }
-
-            const subAgentResultText = buildSubagentResultText(subAgentMessages)
-            if (!subAgentResultText) {
-                continue
-            }
-
-            state.subAgentResultCache.set(part.callID, subAgentResultText)
-            part.state.output = stripHallucinationsFromString(
-                mergeSubagentResult(part.state.output, subAgentResultText),
-            )
+            await fetchAndMergeSubAgentResult(part, client, state.subAgentResultCache, logger)
         }
     }
 }

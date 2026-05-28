@@ -1,7 +1,9 @@
 import { tool } from "@opencode-ai/plugin"
+import type { ToolContext as ToolExecContext } from "@opencode-ai/plugin"
 import type { ToolContext } from "./types"
-import { countTokens } from "../token-utils"
+import { countTokens } from "../token-counting"
 import { RANGE_FORMAT_EXTENSION } from "../prompts/extensions/tool"
+import { extractCompressCallId } from "./message-utils"
 import { finalizeSession, prepareSession, type NotificationEntry } from "./pipeline"
 import { appendProtectedTools, appendProtectedUserMessages } from "./protected-content"
 import {
@@ -9,7 +11,7 @@ import {
     injectBlockPlaceholders,
     parseBlockPlaceholders,
     resolveRanges,
-    validateArgs,
+    validateRangeArgs,
     validateNonOverlapping,
     validateSummaryPlaceholders,
 } from "./range-utils"
@@ -20,7 +22,11 @@ import {
     applyCompressionState,
     wrapCompressedSummary,
 } from "./state"
-import type { CompressRangeToolArgs } from "./types"
+import type {
+    CompressRangeToolArgs,
+    ResolvedRangeCompression,
+    SearchContext,
+} from "./types"
 
 function buildSchema() {
     return {
@@ -49,6 +55,150 @@ function buildSchema() {
     }
 }
 
+interface PreparedRangePlan {
+    entry: ResolvedRangeCompression["entry"]
+    selection: ResolvedRangeCompression["selection"]
+    anchorMessageId: string
+    finalSummary: string
+    consumedBlockIds: number[]
+}
+
+async function prepareRangeCompression(
+    ctx: ToolContext,
+    toolCtx: ToolExecContext,
+    input: CompressRangeToolArgs,
+) {
+    validateRangeArgs(input)
+    const callId = extractCompressCallId(toolCtx)
+    const { rawMessages, searchContext } = await prepareSession(
+        ctx,
+        toolCtx,
+        `Compress Range: ${input.topic}`,
+    )
+    const resolvedPlans = resolveRanges(input, searchContext, ctx.state)
+    validateNonOverlapping(resolvedPlans)
+    return { rawMessages, searchContext, resolvedPlans, callId }
+}
+
+async function buildRangeSummaries(
+    resolvedPlans: ResolvedRangeCompression[],
+    searchContext: SearchContext,
+    ctx: ToolContext,
+): Promise<PreparedRangePlan[]> {
+    const preparedPlans: PreparedRangePlan[] = []
+
+    for (const plan of resolvedPlans) {
+        const parsedPlaceholders = parseBlockPlaceholders(plan.entry.summary)
+        const missingBlockIds = validateSummaryPlaceholders(
+            parsedPlaceholders,
+            plan.selection.requiredBlockIds,
+            plan.selection.startReference,
+            plan.selection.endReference,
+            searchContext.summaryByBlockId,
+        )
+
+        const injected = injectBlockPlaceholders(
+            plan.entry.summary,
+            parsedPlaceholders,
+            searchContext.summaryByBlockId,
+            plan.selection.startReference,
+            plan.selection.endReference,
+        )
+
+        const summaryWithUsers = appendProtectedUserMessages(
+            injected.expandedSummary,
+            plan.selection,
+            searchContext,
+            ctx.state,
+            ctx.config.compress.protectUserMessages,
+        )
+
+        const summaryWithTools = await appendProtectedTools(
+            ctx.client,
+            ctx.state,
+            ctx.config.experimental.allowSubAgents,
+            summaryWithUsers,
+            plan.selection,
+            searchContext,
+            ctx.config.compress.protectedTools,
+            ctx.config.protectedFilePatterns,
+        )
+
+        const completedSummary = appendMissingBlockSummaries(
+            summaryWithTools,
+            missingBlockIds,
+            searchContext.summaryByBlockId,
+            injected.consumedBlockIds,
+        )
+
+        preparedPlans.push({
+            entry: plan.entry,
+            selection: plan.selection,
+            anchorMessageId: plan.anchorMessageId,
+            finalSummary: completedSummary.expandedSummary,
+            consumedBlockIds: completedSummary.consumedBlockIds,
+        })
+    }
+
+    return preparedPlans
+}
+
+async function executeCompressRange(
+    ctx: ToolContext,
+    args: unknown,
+    toolCtx: ToolExecContext,
+): Promise<string> {
+    const input = args as CompressRangeToolArgs
+
+    const { rawMessages, searchContext, resolvedPlans, callId } =
+        await prepareRangeCompression(ctx, toolCtx, input)
+
+    const preparedPlans = await buildRangeSummaries(resolvedPlans, searchContext, ctx)
+
+    const notifications: NotificationEntry[] = []
+    let totalCompressedMessages = 0
+    const runId = allocateRunId(ctx.state)
+
+    for (const preparedPlan of preparedPlans) {
+        const blockId = allocateBlockId(ctx.state)
+        const storedSummary = wrapCompressedSummary(blockId, preparedPlan.finalSummary)
+        const summaryTokens = countTokens(storedSummary)
+
+        const applied = applyCompressionState(
+            ctx.state,
+            {
+                topic: input.topic,
+                batchTopic: input.topic,
+                startId: preparedPlan.entry.startId,
+                endId: preparedPlan.entry.endId,
+                mode: "range",
+                runId,
+                compressMessageId: toolCtx.messageID,
+                compressCallId: callId,
+                summaryTokens,
+            },
+            preparedPlan.selection,
+            preparedPlan.anchorMessageId,
+            blockId,
+            storedSummary,
+            preparedPlan.consumedBlockIds,
+        )
+
+        totalCompressedMessages += applied.messageIds.length
+
+        notifications.push({
+            blockId,
+            runId,
+            summary: preparedPlan.finalSummary,
+            summaryTokens,
+        })
+    }
+
+    await finalizeSession(ctx, toolCtx, rawMessages, notifications, input.topic)
+
+    return `Compressed ${totalCompressedMessages} messages into ${COMPRESSED_BLOCK_HEADER}.`
+}
+
 export function createCompressRangeTool(ctx: ToolContext): ReturnType<typeof tool> {
     ctx.prompts.reload()
     const runtimePrompts = ctx.prompts.getRuntimePrompts()
@@ -56,125 +206,6 @@ export function createCompressRangeTool(ctx: ToolContext): ReturnType<typeof too
     return tool({
         description: runtimePrompts.compressRange + RANGE_FORMAT_EXTENSION,
         args: buildSchema(),
-        async execute(args, toolCtx) {
-            const input = args as CompressRangeToolArgs
-            validateArgs(input)
-            const callId =
-                typeof (toolCtx as unknown as { callID?: unknown }).callID === "string"
-                    ? (toolCtx as unknown as { callID: string }).callID
-                    : undefined
-
-            const { rawMessages, searchContext } = await prepareSession(
-                ctx,
-                toolCtx,
-                `Compress Range: ${input.topic}`,
-            )
-            const resolvedPlans = resolveRanges(input, searchContext, ctx.state)
-            validateNonOverlapping(resolvedPlans)
-
-            const notifications: NotificationEntry[] = []
-            const preparedPlans: Array<{
-                entry: (typeof resolvedPlans)[number]["entry"]
-                selection: (typeof resolvedPlans)[number]["selection"]
-                anchorMessageId: string
-                finalSummary: string
-                consumedBlockIds: number[]
-            }> = []
-            let totalCompressedMessages = 0
-
-            for (const plan of resolvedPlans) {
-                const parsedPlaceholders = parseBlockPlaceholders(plan.entry.summary)
-                const missingBlockIds = validateSummaryPlaceholders(
-                    parsedPlaceholders,
-                    plan.selection.requiredBlockIds,
-                    plan.selection.startReference,
-                    plan.selection.endReference,
-                    searchContext.summaryByBlockId,
-                )
-
-                const injected = injectBlockPlaceholders(
-                    plan.entry.summary,
-                    parsedPlaceholders,
-                    searchContext.summaryByBlockId,
-                    plan.selection.startReference,
-                    plan.selection.endReference,
-                )
-
-                const summaryWithUsers = appendProtectedUserMessages(
-                    injected.expandedSummary,
-                    plan.selection,
-                    searchContext,
-                    ctx.state,
-                    ctx.config.compress.protectUserMessages,
-                )
-
-                const summaryWithTools = await appendProtectedTools(
-                    ctx.client,
-                    ctx.state,
-                    ctx.config.experimental.allowSubAgents,
-                    summaryWithUsers,
-                    plan.selection,
-                    searchContext,
-                    ctx.config.compress.protectedTools,
-                    ctx.config.protectedFilePatterns,
-                )
-
-                const completedSummary = appendMissingBlockSummaries(
-                    summaryWithTools,
-                    missingBlockIds,
-                    searchContext.summaryByBlockId,
-                    injected.consumedBlockIds,
-                )
-
-                preparedPlans.push({
-                    entry: plan.entry,
-                    selection: plan.selection,
-                    anchorMessageId: plan.anchorMessageId,
-                    finalSummary: completedSummary.expandedSummary,
-                    consumedBlockIds: completedSummary.consumedBlockIds,
-                })
-            }
-
-            const runId = allocateRunId(ctx.state)
-
-            for (const preparedPlan of preparedPlans) {
-                const blockId = allocateBlockId(ctx.state)
-                const storedSummary = wrapCompressedSummary(blockId, preparedPlan.finalSummary)
-                const summaryTokens = countTokens(storedSummary)
-
-                const applied = applyCompressionState(
-                    ctx.state,
-                    {
-                        topic: input.topic,
-                        batchTopic: input.topic,
-                        startId: preparedPlan.entry.startId,
-                        endId: preparedPlan.entry.endId,
-                        mode: "range",
-                        runId,
-                        compressMessageId: toolCtx.messageID,
-                        compressCallId: callId,
-                        summaryTokens,
-                    },
-                    preparedPlan.selection,
-                    preparedPlan.anchorMessageId,
-                    blockId,
-                    storedSummary,
-                    preparedPlan.consumedBlockIds,
-                )
-
-                totalCompressedMessages += applied.messageIds.length
-
-                notifications.push({
-                    blockId,
-                    runId,
-                    summary: preparedPlan.finalSummary,
-                    summaryTokens,
-                })
-            }
-
-            await finalizeSession(ctx, toolCtx, rawMessages, notifications, input.topic)
-
-            return `Compressed ${totalCompressedMessages} messages into ${COMPRESSED_BLOCK_HEADER}.`
-        },
+        execute: (args, toolCtx) => executeCompressRange(ctx, args, toolCtx),
     })
 }

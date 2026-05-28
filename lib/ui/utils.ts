@@ -1,141 +1,7 @@
 import { SessionState, ToolParameterEntry, WithParts } from "../state"
-import { countTokens } from "../token-utils"
+import { countTokens } from "../token-counting"
 import { isIgnoredUserMessage } from "../messages/query"
-
-function extractParameterKey(tool: string, parameters: any): string {
-    if (!parameters) return ""
-
-    if (tool === "read" && parameters.filePath) {
-        const offset = parameters.offset
-        const limit = parameters.limit
-        if (offset !== undefined && limit !== undefined) {
-            return `${parameters.filePath} (lines ${offset}-${offset + limit})`
-        }
-        if (offset !== undefined) {
-            return `${parameters.filePath} (lines ${offset}+)`
-        }
-        if (limit !== undefined) {
-            return `${parameters.filePath} (lines 0-${limit})`
-        }
-        return parameters.filePath
-    }
-
-    if ((tool === "write" || tool === "edit" || tool === "multiedit") && parameters.filePath) {
-        return parameters.filePath
-    }
-
-    if (tool === "apply_patch" && typeof parameters.patchText === "string") {
-        const pathRegex = /\*\*\* (?:Add|Delete|Update) File: ([^\n\r]+)/g
-        const paths: string[] = []
-        let match
-        while ((match = pathRegex.exec(parameters.patchText)) !== null) {
-            paths.push(match[1].trim())
-        }
-        if (paths.length > 0) {
-            const uniquePaths = [...new Set(paths)]
-            const count = uniquePaths.length
-            const plural = count > 1 ? "s" : ""
-            if (count === 1) return uniquePaths[0]
-            if (count === 2) return uniquePaths.join(", ")
-            return `${count} file${plural}: ${uniquePaths[0]}, ${uniquePaths[1]}...`
-        }
-        return "patch"
-    }
-
-    if (tool === "list") {
-        return parameters.path || "(current directory)"
-    }
-
-    if (tool === "glob") {
-        if (parameters.pattern) {
-            const pathInfo = parameters.path ? ` in ${parameters.path}` : ""
-            return `"${parameters.pattern}"${pathInfo}`
-        }
-        return "(unknown pattern)"
-    }
-
-    if (tool === "grep") {
-        if (parameters.pattern) {
-            const pathInfo = parameters.path ? ` in ${parameters.path}` : ""
-            return `"${parameters.pattern}"${pathInfo}`
-        }
-        return "(unknown pattern)"
-    }
-
-    if (tool === "bash") {
-        if (parameters.description) return parameters.description
-        if (parameters.command) {
-            return parameters.command.length > 50
-                ? parameters.command.substring(0, 50) + "..."
-                : parameters.command
-        }
-    }
-
-    if (tool === "webfetch" && parameters.url) {
-        return parameters.url
-    }
-    if (tool === "websearch" && parameters.query) {
-        return `"${parameters.query}"`
-    }
-    if (tool === "codesearch" && parameters.query) {
-        return `"${parameters.query}"`
-    }
-
-    if (tool === "todowrite") {
-        return `${parameters.todos?.length || 0} todos`
-    }
-    if (tool === "todoread") {
-        return "read todo list"
-    }
-
-    if (tool === "task" && parameters.description) {
-        return parameters.description
-    }
-    if (tool === "skill" && parameters.name) {
-        return parameters.name
-    }
-
-    if (tool === "lsp") {
-        const op = parameters.operation || "lsp"
-        const path = parameters.filePath || ""
-        const line = parameters.line
-        const char = parameters.character
-        if (path && line !== undefined && char !== undefined) {
-            return `${op} ${path}:${line}:${char}`
-        }
-        if (path) {
-            return `${op} ${path}`
-        }
-        return op
-    }
-
-    if (tool === "question") {
-        const questions = parameters.questions
-        if (Array.isArray(questions) && questions.length > 0) {
-            const headers = questions
-                .map((q: any) => q.header || "")
-                .filter(Boolean)
-                .slice(0, 3)
-
-            const count = questions.length
-            const plural = count > 1 ? "s" : ""
-
-            if (headers.length > 0) {
-                const suffix = count > 3 ? ` (+${count - 3} more)` : ""
-                return `${count} question${plural}: ${headers.join(", ")}${suffix}`
-            }
-            return `${count} question${plural}`
-        }
-        return "question"
-    }
-
-    const paramStr = JSON.stringify(parameters)
-    if (paramStr === "{}" || paramStr === "[]" || paramStr === "null") {
-        return ""
-    }
-
-    return paramStr.substring(0, 50)
-}
+import { extractParameterKey } from "./param-formatters"
 
 export function formatStatsHeader(totalTokensSaved: number, pruneTokenCounter: number): string {
     const totalTokensSavedStr = `~${formatTokenCount(totalTokensSaved + pruneTokenCounter)}`
@@ -150,7 +16,7 @@ export function formatTokenCount(tokens: number, compact?: boolean): string {
     return tokens.toString() + suffix
 }
 
-export function truncate(str: string, maxLen: number = 60): string {
+function truncate(str: string, maxLen: number = 60): string {
     if (str.length <= maxLen) return str
     return str.slice(0, maxLen - 3) + "..."
 }
@@ -190,46 +56,52 @@ export function formatProgressBar(
     return `│${bar.join("")}│`
 }
 
-export function cacheSystemPromptTokens(state: SessionState, messages: WithParts[]): void {
-    let firstInputTokens = 0
+function getAssistantInputTokens(msg: WithParts): number {
+    const info = msg.info as any
+    const input = info?.tokens?.input || 0
+    const cacheRead = info?.tokens?.cache?.read || 0
+    const cacheWrite = info?.tokens?.cache?.write || 0
+    return input + cacheRead + cacheWrite
+}
+
+function findFirstInputTokens(messages: WithParts[]): number {
     for (const msg of messages) {
-        if (msg.info.role !== "assistant") {
-            continue
-        }
-        const info = msg.info as any
-        const input = info?.tokens?.input || 0
-        const cacheRead = info?.tokens?.cache?.read || 0
-        const cacheWrite = info?.tokens?.cache?.write || 0
-        if (input > 0 || cacheRead > 0 || cacheWrite > 0) {
-            firstInputTokens = input + cacheRead + cacheWrite
-            break
-        }
+        if (msg.info.role !== "assistant") continue
+        const tokens = getAssistantInputTokens(msg)
+        if (tokens > 0) return tokens
     }
+    return 0
+}
 
-    if (firstInputTokens <= 0) {
-        state.systemPromptTokens = undefined
-        return
-    }
-
-    let firstUserText = ""
+function collectFirstUserText(messages: WithParts[]): string {
     for (const msg of messages) {
         if (msg.info.role !== "user" || isIgnoredUserMessage(msg)) {
             continue
         }
         const parts = Array.isArray(msg.parts) ? msg.parts : []
+        let text = ""
         for (const part of parts) {
             if (part.type === "text" && !(part as any).ignored) {
-                firstUserText += part.text
+                text += part.text
             }
         }
-        break
+        return text
     }
+    return ""
+}
 
+export function cacheSystemPromptTokens(state: SessionState, messages: WithParts[]): void {
+    const firstInputTokens = findFirstInputTokens(messages)
+    if (firstInputTokens <= 0) {
+        state.systemPromptTokens = undefined
+        return
+    }
+    const firstUserText = collectFirstUserText(messages)
     const estimatedSystemTokens = Math.max(0, firstInputTokens - countTokens(firstUserText))
     state.systemPromptTokens = estimatedSystemTokens > 0 ? estimatedSystemTokens : undefined
 }
 
-export function shortenPath(input: string, workingDirectory?: string): string {
+function shortenPath(input: string, workingDirectory?: string): string {
     const inPathMatch = input.match(/^(.+) in (.+)$/)
     if (inPathMatch) {
         const prefix = inPathMatch[1]
@@ -286,7 +158,7 @@ export function formatPrunedItemsList(
     return lines
 }
 
-export function formatPruningResultForTool(
+function formatPruningResultForTool(
     prunedIds: string[],
     toolMetadata: Map<string, ToolParameterEntry>,
     workingDirectory?: string,

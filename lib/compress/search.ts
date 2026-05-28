@@ -1,8 +1,8 @@
 import type { SessionState, WithParts } from "../state"
-import { formatBlockRef, parseBoundaryId } from "../message-ids"
+import { formatBlockRef, parseBoundaryId, type ParsedBoundaryId } from "../message-ids"
 import { isIgnoredUserMessage } from "../messages/query"
 import { filterMessages } from "../messages/shape"
-import { countAllMessageTokens } from "../token-utils"
+import { countAllMessageTokens } from "../token-counting"
 import type { BoundaryReference, SearchContext, SelectionResolution } from "./types"
 
 export async function fetchSessionMessages(client: any, sessionId: string): Promise<WithParts[]> {
@@ -43,6 +43,41 @@ export function buildSearchContext(state: SessionState, rawMessages: WithParts[]
     }
 }
 
+function parseAndValidateBoundaryId(
+    idStr: string,
+    idKind: "startId" | "endId",
+    lookup: Map<string, BoundaryReference>,
+    issues: string[],
+): { parsed: ParsedBoundaryId; reference: BoundaryReference } | null {
+    const parsed = parseBoundaryId(idStr)
+    if (parsed === null) {
+        issues.push(`${idKind} is invalid. Use an injected message ID (mNNNN) or block ID (bN).`)
+        return null
+    }
+    const reference = lookup.get(parsed.ref)
+    if (!reference) {
+        issues.push(
+            `${idKind} ${parsed.ref} is not available in the current conversation context. Choose an injected ID visible in context.`,
+        )
+        return null
+    }
+    return { parsed, reference }
+}
+
+function validateBoundaryOrder(
+    start: BoundaryReference,
+    end: BoundaryReference,
+    startParsedRef: string,
+    endParsedRef: string,
+    issues: string[],
+): void {
+    if (start.rawIndex > end.rawIndex) {
+        issues.push(
+            `startId ${startParsedRef} appears after endId ${endParsedRef} in the conversation. Start must come before end.`,
+        )
+    }
+}
+
 export function resolveBoundaryIds(
     context: SearchContext,
     state: SessionState,
@@ -51,39 +86,17 @@ export function resolveBoundaryIds(
 ): { startReference: BoundaryReference; endReference: BoundaryReference } {
     const lookup = buildBoundaryLookup(context, state)
     const issues: string[] = []
-    const parsedStartId = parseBoundaryId(startId)
-    const parsedEndId = parseBoundaryId(endId)
 
-    if (parsedStartId === null) {
-        issues.push("startId is invalid. Use an injected message ID (mNNNN) or block ID (bN).")
-    }
+    const startResult = parseAndValidateBoundaryId(startId, "startId", lookup, issues)
+    const endResult = parseAndValidateBoundaryId(endId, "endId", lookup, issues)
 
-    if (parsedEndId === null) {
-        issues.push("endId is invalid. Use an injected message ID (mNNNN) or block ID (bN).")
-    }
-
-    if (issues.length > 0) {
-        throw new Error(
-            issues.length === 1 ? issues[0] : issues.map((issue) => `- ${issue}`).join("\n"),
-        )
-    }
-
-    if (!parsedStartId || !parsedEndId) {
-        throw new Error("Invalid boundary ID(s)")
-    }
-
-    const startReference = lookup.get(parsedStartId.ref)
-    const endReference = lookup.get(parsedEndId.ref)
-
-    if (!startReference) {
-        issues.push(
-            `startId ${parsedStartId.ref} is not available in the current conversation context. Choose an injected ID visible in context.`,
-        )
-    }
-
-    if (!endReference) {
-        issues.push(
-            `endId ${parsedEndId.ref} is not available in the current conversation context. Choose an injected ID visible in context.`,
+    if (startResult && endResult) {
+        validateBoundaryOrder(
+            startResult.reference,
+            endResult.reference,
+            startResult.parsed.ref,
+            endResult.parsed.ref,
+            issues,
         )
     }
 
@@ -93,32 +106,28 @@ export function resolveBoundaryIds(
         )
     }
 
-    if (!startReference || !endReference) {
+    if (!startResult || !endResult) {
         throw new Error("Failed to resolve boundary IDs")
     }
 
-    if (startReference.rawIndex > endReference.rawIndex) {
-        throw new Error(
-            `startId ${parsedStartId.ref} appears after endId ${parsedEndId.ref} in the conversation. Start must come before end.`,
-        )
-    }
-
-    return { startReference, endReference }
+    return { startReference: startResult.reference, endReference: endResult.reference }
 }
 
-export function resolveSelection(
+interface RangeCollection {
+    messageIds: string[]
+    messageTokenById: Map<string, number>
+    toolIds: string[]
+}
+
+function collectMessagesAndToolsInRange(
     context: SearchContext,
-    startReference: BoundaryReference,
-    endReference: BoundaryReference,
-): SelectionResolution {
-    const startRawIndex = startReference.rawIndex
-    const endRawIndex = endReference.rawIndex
+    startRawIndex: number,
+    endRawIndex: number,
+): RangeCollection {
     const messageIds: string[] = []
     const messageSeen = new Set<string>()
     const toolIds: string[] = []
     const toolSeen = new Set<string>()
-    const requiredBlockIds: number[] = []
-    const requiredBlockSeen = new Set<number>()
     const messageTokenById = new Map<string, number>()
 
     for (let index = startRawIndex; index <= endRawIndex; index++) {
@@ -153,32 +162,69 @@ export function resolveSelection(
         }
     }
 
-    const selectedMessageIds = new Set(messageIds)
-    const summariesInSelection: Array<{ blockId: number; rawIndex: number }> = []
-    for (const summary of context.summaryByBlockId.values()) {
-        if (!selectedMessageIds.has(summary.anchorMessageId)) {
+    return { messageIds, messageTokenById, toolIds }
+}
+
+interface SummaryCandidate {
+    blockId: number
+    rawIndex: number
+}
+
+function collectSummariesInSelection(
+    context: SearchContext,
+    selectedMessageIds: Set<string>,
+): SummaryCandidate[] {
+    const summaries: SummaryCandidate[] = []
+    for (const block of context.summaryByBlockId.values()) {
+        if (!selectedMessageIds.has(block.anchorMessageId)) {
             continue
         }
 
-        const anchorIndex = context.rawIndexById.get(summary.anchorMessageId)
+        const anchorIndex = context.rawIndexById.get(block.anchorMessageId)
         if (anchorIndex === undefined) {
             continue
         }
 
-        summariesInSelection.push({
-            blockId: summary.blockId,
+        summaries.push({
+            blockId: block.blockId,
             rawIndex: anchorIndex,
         })
     }
 
-    summariesInSelection.sort((a, b) => a.rawIndex - b.rawIndex || a.blockId - b.blockId)
-    for (const summary of summariesInSelection) {
-        if (requiredBlockSeen.has(summary.blockId)) {
+    summaries.sort((a, b) => a.rawIndex - b.rawIndex || a.blockId - b.blockId)
+    return summaries
+}
+
+function collectRequiredBlockIds(summaries: SummaryCandidate[]): number[] {
+    const required: number[] = []
+    const seen = new Set<number>()
+    for (const summary of summaries) {
+        if (seen.has(summary.blockId)) {
             continue
         }
-        requiredBlockSeen.add(summary.blockId)
-        requiredBlockIds.push(summary.blockId)
+        seen.add(summary.blockId)
+        required.push(summary.blockId)
     }
+    return required
+}
+
+export function resolveSelection(
+    context: SearchContext,
+    startReference: BoundaryReference,
+    endReference: BoundaryReference,
+): SelectionResolution {
+    const { messageIds, messageTokenById, toolIds } = collectMessagesAndToolsInRange(
+        context,
+        startReference.rawIndex,
+        endReference.rawIndex,
+    )
+
+    const summariesInSelection = collectSummariesInSelection(
+        context,
+        new Set(messageIds),
+    )
+
+    const requiredBlockIds = collectRequiredBlockIds(summariesInSelection)
 
     if (messageIds.length === 0) {
         throw new Error(
@@ -210,21 +256,16 @@ export function resolveAnchorMessageId(startReference: BoundaryReference): strin
     return startReference.messageId
 }
 
-function buildBoundaryLookup(
-    context: SearchContext,
+function addMessageBoundaryRefs(
     state: SessionState,
-): Map<string, BoundaryReference> {
-    const lookup = new Map<string, BoundaryReference>()
-
+    context: SearchContext,
+    lookup: Map<string, BoundaryReference>,
+): void {
     for (const [messageRef, messageId] of state.messageIds.byRef) {
         const rawMessage = context.rawMessagesById.get(messageId)
-        if (!rawMessage) {
+        if (!rawMessage || isIgnoredUserMessage(rawMessage)) {
             continue
         }
-        if (isIgnoredUserMessage(rawMessage)) {
-            continue
-        }
-
         const rawIndex = context.rawIndexById.get(messageId)
         if (rawIndex === undefined) {
             continue
@@ -235,19 +276,20 @@ function buildBoundaryLookup(
             messageId,
         })
     }
+}
 
+function addCompressedBlockBoundaryRefs(
+    context: SearchContext,
+    lookup: Map<string, BoundaryReference>,
+): void {
     const summaries = Array.from(context.summaryByBlockId.values()).sort(
         (a, b) => a.blockId - b.blockId,
     )
     for (const summary of summaries) {
         const anchorMessage = context.rawMessagesById.get(summary.anchorMessageId)
-        if (!anchorMessage) {
+        if (!anchorMessage || isIgnoredUserMessage(anchorMessage)) {
             continue
         }
-        if (isIgnoredUserMessage(anchorMessage)) {
-            continue
-        }
-
         const rawIndex = context.rawIndexById.get(summary.anchorMessageId)
         if (rawIndex === undefined) {
             continue
@@ -262,6 +304,14 @@ function buildBoundaryLookup(
             })
         }
     }
+}
 
+function buildBoundaryLookup(
+    context: SearchContext,
+    state: SessionState,
+): Map<string, BoundaryReference> {
+    const lookup = new Map<string, BoundaryReference>()
+    addMessageBoundaryRefs(state, context, lookup)
+    addCompressedBlockBoundaryRefs(context, lookup)
     return lookup
 }

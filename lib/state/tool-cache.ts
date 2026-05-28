@@ -1,10 +1,105 @@
-import type { SessionState, ToolStatus, WithParts } from "./index"
+import type { SessionState, ToolParameterEntry, ToolStatus, WithParts } from "./types"
 import type { Logger } from "../logger"
 import { PluginConfig } from "../config"
-import { isMessageCompacted } from "./utils"
-import { countToolTokens } from "../token-utils"
+import { getMessageParts } from "./utils"
+import { countToolTokens } from "../token-counting-tools"
 
 const MAX_TOOL_CACHE_SIZE = 1000
+
+interface ToolPartLike {
+    type: "tool"
+    callID: string
+    tool: string
+    state?: {
+        input?: any
+        status?: string
+        error?: string
+    }
+}
+
+function isToolPart(part: { type?: string; callID?: string }): part is ToolPartLike {
+    return part.type === "tool" && !!part.callID
+}
+
+function isTurnProtected(config: PluginConfig, state: SessionState, turn: number): boolean {
+    const { enabled, turns } = config.turnProtection
+    return enabled && turns > 0 && state.currentTurn - turn < turns
+}
+
+function buildToolCacheEntry(
+    part: ToolPartLike,
+    turn: number,
+    tokenCount?: number,
+): ToolParameterEntry {
+    return {
+        tool: part.tool,
+        parameters: part.state?.input ?? {},
+        status: part.state?.status as ToolStatus | undefined,
+        error: part.state?.status === "error" ? part.state?.error : undefined,
+        turn,
+        tokenCount,
+    }
+}
+
+interface CollectedToolPart {
+    part: ToolPartLike
+    turn: number
+}
+
+function collectToolParts(
+    state: SessionState,
+    messages: WithParts[],
+): CollectedToolPart[] {
+    const result: CollectedToolPart[] = []
+    let turnCounter = 0
+
+    for (const msg of messages) {
+        const parts = getMessageParts(state, msg)
+        if (!parts) continue
+        for (const part of parts) {
+            if (part.type === "step-start") {
+                turnCounter++
+                continue
+            }
+            if (isToolPart(part)) {
+                result.push({ part, turn: turnCounter })
+            }
+        }
+    }
+
+    return result
+}
+
+function shouldSkipToolPart(
+    state: SessionState,
+    config: PluginConfig,
+    callID: string,
+    turn: number,
+): boolean {
+    if (state.toolParameters.has(callID)) {
+        return true
+    }
+    if (isTurnProtected(config, state, turn)) {
+        return true
+    }
+    return false
+}
+
+function cacheToolPart(
+    state: SessionState,
+    logger: Logger,
+    part: ToolPartLike,
+    turn: number,
+): void {
+    const tokenCount = countToolTokens(part)
+    state.toolParameters.set(
+        part.callID,
+        buildToolCacheEntry(part, turn, tokenCount),
+    )
+    logger.info(
+        `Cached tool id: ${part.callID} (turn ${turn}${tokenCount !== undefined ? `, ${tokenCount} tokens` : ""})`,
+    )
+}
 
 /**
  * Sync tool parameters from session messages.
@@ -17,56 +112,12 @@ export function syncToolCache(
 ): void {
     try {
         logger.info("Syncing tool parameters from OpenCode messages")
-
-        let turnCounter = 0
-
-        for (const msg of messages) {
-            if (isMessageCompacted(state, msg)) {
+        for (const { part, turn } of collectToolParts(state, messages)) {
+            if (shouldSkipToolPart(state, config, part.callID, turn)) {
                 continue
             }
-
-            const parts = Array.isArray(msg.parts) ? msg.parts : []
-            for (const part of parts) {
-                if (part.type === "step-start") {
-                    turnCounter++
-                    continue
-                }
-
-                if (part.type !== "tool" || !part.callID) {
-                    continue
-                }
-
-                const turnProtectionEnabled = config.turnProtection.enabled
-                const turnProtectionTurns = config.turnProtection.turns
-                const isProtectedByTurn =
-                    turnProtectionEnabled &&
-                    turnProtectionTurns > 0 &&
-                    state.currentTurn - turnCounter < turnProtectionTurns
-
-                if (state.toolParameters.has(part.callID)) {
-                    continue
-                }
-
-                if (isProtectedByTurn) {
-                    continue
-                }
-
-                const tokenCount = countToolTokens(part)
-
-                state.toolParameters.set(part.callID, {
-                    tool: part.tool,
-                    parameters: part.state?.input ?? {},
-                    status: part.state.status as ToolStatus | undefined,
-                    error: part.state.status === "error" ? part.state.error : undefined,
-                    turn: turnCounter,
-                    tokenCount,
-                })
-                logger.info(
-                    `Cached tool id: ${part.callID} (turn ${turnCounter}${tokenCount !== undefined ? `, ${tokenCount} tokens` : ""})`,
-                )
-            }
+            cacheToolPart(state, logger, part, turn)
         }
-
         logger.info(
             `Synced cache - size: ${state.toolParameters.size}, currentTurn: ${state.currentTurn}`,
         )
@@ -82,7 +133,7 @@ export function syncToolCache(
  * Trim the tool parameters cache to prevent unbounded memory growth.
  * Uses FIFO eviction - removes oldest entries first.
  */
-export function trimToolParametersCache(state: SessionState): void {
+function trimToolParametersCache(state: SessionState): void {
     if (state.toolParameters.size <= MAX_TOOL_CACHE_SIZE) {
         return
     }

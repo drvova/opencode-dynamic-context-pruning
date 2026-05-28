@@ -5,6 +5,7 @@ import {
     compressDisabledByOpencode,
     hasExplicitToolPermission,
     type HostPermissionSnapshot,
+    type PermissionConfig,
 } from "./lib/host-permissions"
 import { Logger } from "./lib/logger"
 import { createSessionState } from "./lib/state"
@@ -19,6 +20,73 @@ import {
 import { configureClientAuth, isSecureMode } from "./lib/auth"
 
 const id = "opencode-dynamic-context-pruning"
+
+function disableCompressIfNeeded(
+    config: ReturnType<typeof getConfig>,
+    opencodeConfig: Record<string, any>,
+): void {
+    if (
+        config.compress.permission !== "deny" &&
+        compressDisabledByOpencode(opencodeConfig.permission)
+    ) {
+        config.compress.permission = "deny"
+    }
+}
+
+function registerDcpCommandIfEnabled(
+    config: ReturnType<typeof getConfig>,
+    opencodeConfig: Record<string, any>,
+): void {
+    if (config.commands.enabled && config.compress.permission !== "deny") {
+        opencodeConfig.command ??= {}
+        opencodeConfig.command["dcp"] = {
+            template: "",
+            description: "Show available DCP commands",
+        }
+    }
+}
+
+function addCompressToPrimaryToolsIfNeeded(
+    config: ReturnType<typeof getConfig>,
+    opencodeConfig: Record<string, any>,
+): void {
+    const toolsToAdd: string[] = []
+    if (config.compress.permission !== "deny" && !config.experimental.allowSubAgents) {
+        toolsToAdd.push("compress")
+    }
+
+    if (toolsToAdd.length > 0) {
+        const existingPrimaryTools = opencodeConfig.experimental?.primary_tools ?? []
+        opencodeConfig.experimental = {
+            ...opencodeConfig.experimental,
+            primary_tools: [...existingPrimaryTools, ...toolsToAdd],
+        }
+    }
+}
+
+function ensureCompressPermission(
+    config: ReturnType<typeof getConfig>,
+    opencodeConfig: Record<string, any>,
+): void {
+    if (!hasExplicitToolPermission(opencodeConfig.permission, "compress")) {
+        const permission = opencodeConfig.permission ?? {}
+        opencodeConfig.permission = {
+            ...permission,
+            compress: config.compress.permission,
+        } as typeof permission
+    }
+}
+
+function extractAgentPermissions(
+    opencodeConfig: Record<string, any>,
+): Record<string, PermissionConfig> {
+    return Object.fromEntries(
+        Object.entries(opencodeConfig.agent ?? {}).map(([name, agent]) => [
+            name,
+            (agent as any)?.permission,
+        ]),
+    )
+}
 
 const server: Plugin = (async (ctx) => {
     const config = getConfig(ctx)
@@ -86,49 +154,12 @@ const server: Plugin = (async (ctx) => {
             }),
         },
         config: async (opencodeConfig) => {
-            if (
-                config.compress.permission !== "deny" &&
-                compressDisabledByOpencode(opencodeConfig.permission)
-            ) {
-                config.compress.permission = "deny"
-            }
-
-            if (config.commands.enabled && config.compress.permission !== "deny") {
-                opencodeConfig.command ??= {}
-                opencodeConfig.command["dcp"] = {
-                    template: "",
-                    description: "Show available DCP commands",
-                }
-            }
-
-            const toolsToAdd: string[] = []
-            if (config.compress.permission !== "deny" && !config.experimental.allowSubAgents) {
-                toolsToAdd.push("compress")
-            }
-
-            if (toolsToAdd.length > 0) {
-                const existingPrimaryTools = opencodeConfig.experimental?.primary_tools ?? []
-                opencodeConfig.experimental = {
-                    ...opencodeConfig.experimental,
-                    primary_tools: [...existingPrimaryTools, ...toolsToAdd],
-                }
-            }
-
-            if (!hasExplicitToolPermission(opencodeConfig.permission, "compress")) {
-                const permission = opencodeConfig.permission ?? {}
-                opencodeConfig.permission = {
-                    ...permission,
-                    compress: config.compress.permission,
-                } as typeof permission
-            }
-
+            disableCompressIfNeeded(config, opencodeConfig)
+            registerDcpCommandIfEnabled(config, opencodeConfig)
+            addCompressToPrimaryToolsIfNeeded(config, opencodeConfig)
+            ensureCompressPermission(config, opencodeConfig)
             hostPermissions.global = opencodeConfig.permission
-            hostPermissions.agents = Object.fromEntries(
-                Object.entries(opencodeConfig.agent ?? {}).map(([name, agent]) => [
-                    name,
-                    agent?.permission,
-                ]),
-            )
+            hostPermissions.agents = extractAgentPermissions(opencodeConfig)
         },
     }
 }) satisfies Plugin

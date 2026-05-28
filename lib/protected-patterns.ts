@@ -1,3 +1,5 @@
+import type { SessionState, ToolParameterEntry } from "./state"
+
 function normalizePath(input: string): string {
     return input.replaceAll("\\\\", "/")
 }
@@ -6,7 +8,7 @@ function escapeRegExpChar(ch: string): string {
     return /[\\.^$+{}()|\[\]]/.test(ch) ? `\\${ch}` : ch
 }
 
-export function matchesGlob(inputPath: string, pattern: string): boolean {
+function matchesGlob(inputPath: string, pattern: string): boolean {
     if (!pattern) return false
 
     const input = normalizePath(inputPath)
@@ -125,4 +127,18 @@ export function isToolNameProtected(toolName: string, patterns: string[]): boole
     }
 
     return globPatterns.some((pattern) => matchesGlob(toolName, pattern))
+}
+
+export function resolveToolInfo(
+    state: SessionState,
+    id: string,
+    protectedTools: string[],
+    protectedFilePatterns: string[],
+): ToolParameterEntry | null {
+    const metadata = state.toolParameters.get(id)
+    if (!metadata) return null
+    if (isToolNameProtected(metadata.tool, protectedTools)) return null
+    const filePaths = getFilePathsFromParameters(metadata.tool, metadata.parameters)
+    if (isFilePathProtected(filePaths, protectedFilePatterns)) return null
+    return metadata
 }

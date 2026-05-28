@@ -27,7 +27,9 @@ import {
     getIterationNudgeThreshold,
     getNudgeFrequency,
     getModelInfo,
+    insertTextPartBeforeFirstTool,
     isContextOverLimits,
+    type LastNonIgnoredMessage,
 } from "./utils"
 
 export const injectCompressNudges = (
@@ -38,25 +40,9 @@ export const injectCompressNudges = (
     prompts: RuntimePrompts,
     compressionPriorities?: CompressionPriorityMap,
 ): void => {
-    if (compressPermission(state, config) === "deny") {
-        return
-    }
-
-    if (state.manualMode) {
-        return
-    }
+    if (!checkNudgeEligibility(state, config, logger, messages)) return
 
     const lastMessage = findLastNonIgnoredMessage(messages)
-    const lastAssistantMessage = messages.findLast((message) => message.info.role === "assistant")
-
-    if (lastAssistantMessage && messageHasCompress(lastAssistantMessage)) {
-        state.nudges.contextLimitAnchors.clear()
-        state.nudges.turnNudgeAnchors.clear()
-        state.nudges.iterationNudgeAnchors.clear()
-        void saveSessionState(state, logger)
-        return
-    }
-
     const { providerId, modelId } = getModelInfo(messages)
     let anchorsChanged = false
 
@@ -69,70 +55,13 @@ export const injectCompressNudges = (
     )
 
     if (!overMinLimit) {
-        const hadTurnAnchors = state.nudges.turnNudgeAnchors.size > 0
-        const hadIterationAnchors = state.nudges.iterationNudgeAnchors.size > 0
-
-        if (hadTurnAnchors || hadIterationAnchors) {
-            state.nudges.turnNudgeAnchors.clear()
-            state.nudges.iterationNudgeAnchors.clear()
-            anchorsChanged = true
-        }
+        anchorsChanged = clearNudgeAnchorsBelowMinLimit(state)
     }
 
     if (overMaxLimit) {
-        if (lastMessage) {
-            const interval = getNudgeFrequency(config)
-            const added = addAnchor(
-                state.nudges.contextLimitAnchors,
-                lastMessage.message.info.id,
-                lastMessage.index,
-                messages,
-                interval,
-            )
-            if (added) {
-                anchorsChanged = true
-            }
-        }
+        anchorsChanged = tryAddContextLimitAnchor(state, config, messages, lastMessage)
     } else if (overMinLimit) {
-        const isLastMessageUser = lastMessage?.message.info.role === "user"
-
-        if (isLastMessageUser && lastAssistantMessage) {
-            const previousSize = state.nudges.turnNudgeAnchors.size
-            state.nudges.turnNudgeAnchors.add(lastMessage.message.info.id)
-            state.nudges.turnNudgeAnchors.add(lastAssistantMessage.info.id)
-            if (state.nudges.turnNudgeAnchors.size !== previousSize) {
-                anchorsChanged = true
-            }
-        }
-
-        const lastUserMessage = getLastUserMessage(messages)
-        if (lastUserMessage && lastMessage) {
-            const lastUserMessageIndex = messages.findIndex(
-                (message) => message.info.id === lastUserMessage.info.id,
-            )
-            if (lastUserMessageIndex >= 0) {
-                const messagesSinceUser = countMessagesAfterIndex(messages, lastUserMessageIndex)
-                const iterationThreshold = getIterationNudgeThreshold(config)
-
-                if (
-                    lastMessage.index > lastUserMessageIndex &&
-                    messagesSinceUser >= iterationThreshold
-                ) {
-                    const interval = getNudgeFrequency(config)
-                    const added = addAnchor(
-                        state.nudges.iterationNudgeAnchors,
-                        lastMessage.message.info.id,
-                        lastMessage.index,
-                        messages,
-                        interval,
-                    )
-
-                    if (added) {
-                        anchorsChanged = true
-                    }
-                }
-            }
-        }
+        anchorsChanged = tryAddTurnAndIterationAnchors(state, config, messages, lastMessage)
     }
 
     applyAnchoredNudges(state, config, messages, prompts, compressionPriorities)
@@ -140,6 +69,168 @@ export const injectCompressNudges = (
     if (anchorsChanged) {
         void saveSessionState(state, logger)
     }
+}
+
+function checkNudgeEligibility(
+    state: SessionState,
+    config: PluginConfig,
+    logger: Logger,
+    messages: WithParts[],
+): boolean {
+    if (compressPermission(state, config) === "deny") return false
+    if (state.manualMode) return false
+
+    const lastAssistantMessage = messages.findLast((message) => message.info.role === "assistant")
+    if (lastAssistantMessage && messageHasCompress(lastAssistantMessage)) {
+        state.nudges.contextLimitAnchors.clear()
+        state.nudges.turnNudgeAnchors.clear()
+        state.nudges.iterationNudgeAnchors.clear()
+        void saveSessionState(state, logger)
+        return false
+    }
+    return true
+}
+
+function resolveMessageIdTag(
+    state: SessionState,
+    config: PluginConfig,
+    message: WithParts,
+    compressionPriorities?: CompressionPriorityMap,
+): string | undefined {
+    if (isIgnoredUserMessage(message)) {
+        return undefined
+    }
+
+    const messageRef = state.messageIds.byRawId.get(message.info.id)
+    if (!messageRef) {
+        return undefined
+    }
+
+    const isBlockedMessage = isProtectedUserMessage(config, message)
+    const priority =
+        config.compress.mode === "message" && !isBlockedMessage
+            ? compressionPriorities?.get(message.info.id)?.priority
+            : undefined
+    return formatMessageIdTag(
+        isBlockedMessage ? "BLOCKED" : messageRef,
+        priority ? { priority } : undefined,
+    )
+}
+
+function injectIdIntoUserMessage(message: WithParts, tag: string): void {
+    let injected = false
+    for (const part of message.parts) {
+        if (part.type === "text") {
+            injected = appendToTextPart(part, tag) || injected
+        }
+    }
+
+    if (injected) {
+        return
+    }
+
+    message.parts.push(createSyntheticTextPart(message, tag))
+}
+
+function injectIdIntoAssistantMessage(message: WithParts, tag: string): void {
+    if (appendToAllToolParts(message, tag)) {
+        return
+    }
+
+    if (appendToLastTextPart(message, tag)) {
+        return
+    }
+
+    insertTextPartBeforeFirstTool(message, tag)
+}
+
+function clearNudgeAnchorsBelowMinLimit(state: SessionState): boolean {
+    const hadTurnAnchors = state.nudges.turnNudgeAnchors.size > 0
+    const hadIterationAnchors = state.nudges.iterationNudgeAnchors.size > 0
+    if (hadTurnAnchors || hadIterationAnchors) {
+        state.nudges.turnNudgeAnchors.clear()
+        state.nudges.iterationNudgeAnchors.clear()
+        return true
+    }
+    return false
+}
+
+function tryAddContextLimitAnchor(
+    state: SessionState,
+    config: PluginConfig,
+    messages: WithParts[],
+    lastMessage: LastNonIgnoredMessage | null,
+): boolean {
+    if (!lastMessage) return false
+    const interval = getNudgeFrequency(config)
+    return addAnchor(
+        state.nudges.contextLimitAnchors,
+        lastMessage.message.info.id,
+        lastMessage.index,
+        messages,
+        interval,
+    )
+}
+
+function addTurnAnchorsForUserAssistant(
+    state: SessionState,
+    lastMessage: LastNonIgnoredMessage,
+    messages: WithParts[],
+): boolean {
+    if (lastMessage.message.info.role !== "user") return false
+    const lastAssistantMessage = messages.findLast((message) => message.info.role === "assistant")
+    if (!lastAssistantMessage) return false
+    const previousSize = state.nudges.turnNudgeAnchors.size
+    state.nudges.turnNudgeAnchors.add(lastMessage.message.info.id)
+    state.nudges.turnNudgeAnchors.add(lastAssistantMessage.info.id)
+    return state.nudges.turnNudgeAnchors.size !== previousSize
+}
+
+function tryAddIterationNudgeAnchors(
+    state: SessionState,
+    config: PluginConfig,
+    messages: WithParts[],
+    lastMessage: LastNonIgnoredMessage,
+): boolean {
+    const lastUserMessage = getLastUserMessage(messages)
+    if (!lastUserMessage) return false
+    const lastUserMessageIndex = messages.findIndex(
+        (message) => message.info.id === lastUserMessage.info.id,
+    )
+    if (lastUserMessageIndex < 0) return false
+    const messagesSinceUser = countMessagesAfterIndex(messages, lastUserMessageIndex)
+    const iterationThreshold = getIterationNudgeThreshold(config)
+    if (
+        lastMessage.index <= lastUserMessageIndex ||
+        messagesSinceUser < iterationThreshold
+    ) {
+        return false
+    }
+    const interval = getNudgeFrequency(config)
+    return addAnchor(
+        state.nudges.iterationNudgeAnchors,
+        lastMessage.message.info.id,
+        lastMessage.index,
+        messages,
+        interval,
+    )
+}
+
+function tryAddTurnAndIterationAnchors(
+    state: SessionState,
+    config: PluginConfig,
+    messages: WithParts[],
+    lastMessage: LastNonIgnoredMessage | null,
+): boolean {
+    if (!lastMessage) return false
+    let anchorsChanged = false
+    if (addTurnAnchorsForUserAssistant(state, lastMessage, messages)) {
+        anchorsChanged = true
+    }
+    if (tryAddIterationNudgeAnchors(state, config, messages, lastMessage)) {
+        anchorsChanged = true
+    }
+    return anchorsChanged
 }
 
 export const injectMessageIds = (
@@ -153,38 +244,13 @@ export const injectMessageIds = (
     }
 
     for (const message of messages) {
-        if (isIgnoredUserMessage(message)) {
+        const tag = resolveMessageIdTag(state, config, message, compressionPriorities)
+        if (!tag) {
             continue
         }
-
-        const messageRef = state.messageIds.byRawId.get(message.info.id)
-        if (!messageRef) {
-            continue
-        }
-
-        const isBlockedMessage = isProtectedUserMessage(config, message)
-        const priority =
-            config.compress.mode === "message" && !isBlockedMessage
-                ? compressionPriorities?.get(message.info.id)?.priority
-                : undefined
-        const tag = formatMessageIdTag(
-            isBlockedMessage ? "BLOCKED" : messageRef,
-            priority ? { priority } : undefined,
-        )
 
         if (message.info.role === "user") {
-            let injected = false
-            for (const part of message.parts) {
-                if (part.type === "text") {
-                    injected = appendToTextPart(part, tag) || injected
-                }
-            }
-
-            if (injected) {
-                continue
-            }
-
-            message.parts.push(createSyntheticTextPart(message, tag))
+            injectIdIntoUserMessage(message, tag)
             continue
         }
 
@@ -196,20 +262,6 @@ export const injectMessageIds = (
             continue
         }
 
-        if (appendToAllToolParts(message, tag)) {
-            continue
-        }
-
-        if (appendToLastTextPart(message, tag)) {
-            continue
-        }
-
-        const syntheticPart = createSyntheticTextPart(message, tag)
-        const firstToolIndex = message.parts.findIndex((p) => p.type === "tool")
-        if (firstToolIndex === -1) {
-            message.parts.push(syntheticPart)
-        } else {
-            message.parts.splice(firstToolIndex, 0, syntheticPart)
-        }
+        injectIdIntoAssistantMessage(message, tag)
     }
 }

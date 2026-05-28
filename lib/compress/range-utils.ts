@@ -1,4 +1,5 @@
 import type { CompressionBlock, SessionState } from "../state"
+import { validateCompressArgs } from "./message-utils"
 import { resolveAnchorMessageId, resolveBoundaryIds, resolveSelection } from "./search"
 import type {
     BoundaryReference,
@@ -11,31 +12,8 @@ import type {
 
 const BLOCK_PLACEHOLDER_REGEX = /\(b(\d+)\)|\{block_(\d+)\}/gi
 
-export function validateArgs(args: CompressRangeToolArgs): void {
-    if (typeof args.topic !== "string" || args.topic.trim().length === 0) {
-        throw new Error("topic is required and must be a non-empty string")
-    }
-
-    if (!Array.isArray(args.content) || args.content.length === 0) {
-        throw new Error("content is required and must be a non-empty array")
-    }
-
-    for (let index = 0; index < args.content.length; index++) {
-        const entry = args.content[index]
-        const prefix = `content[${index}]`
-
-        if (typeof entry?.startId !== "string" || entry.startId.trim().length === 0) {
-            throw new Error(`${prefix}.startId is required and must be a non-empty string`)
-        }
-
-        if (typeof entry?.endId !== "string" || entry.endId.trim().length === 0) {
-            throw new Error(`${prefix}.endId is required and must be a non-empty string`)
-        }
-
-        if (typeof entry?.summary !== "string" || entry.summary.trim().length === 0) {
-            throw new Error(`${prefix}.summary is required and must be a non-empty string`)
-        }
-    }
+export function validateRangeArgs(args: CompressRangeToolArgs): void {
+    validateCompressArgs(args, ["startId", "endId", "summary"])
 }
 
 export function resolveRanges(

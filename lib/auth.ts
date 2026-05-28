@@ -2,7 +2,7 @@ export function isSecureMode(): boolean {
     return !!process.env.OPENCODE_SERVER_PASSWORD
 }
 
-export function getAuthorizationHeader(): string | undefined {
+function getAuthorizationHeader(): string | undefined {
     const password = process.env.OPENCODE_SERVER_PASSWORD
     if (!password) return undefined
 

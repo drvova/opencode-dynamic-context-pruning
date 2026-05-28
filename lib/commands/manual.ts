@@ -10,6 +10,7 @@
 import type { Logger } from "../logger"
 import type { SessionState, WithParts } from "../state"
 import type { PluginConfig } from "../config"
+import type { TextPart } from "@opencode-ai/sdk/v2"
 import { sendIgnoredMessage } from "../ui/notification"
 import { getCurrentParams } from "../token-utils"
 import { buildCompressedBlockGuidance } from "../prompts/extensions/nudge"
@@ -88,6 +89,27 @@ export async function handleManualTriggerCommand(
     return getTriggerPrompt(tool, ctx.state, ctx.config, userFocus)
 }
 
+function findUserTextPartToReplace(
+    messages: WithParts[],
+): { message: WithParts; textPart: TextPart; partIndex: number } | null {
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i]
+        if (msg.info.role !== "user" || isIgnoredUserMessage(msg)) {
+            continue
+        }
+
+        for (let j = 0; j < msg.parts.length; j++) {
+            const part = msg.parts[j]
+            if (part.type !== "text" || part.ignored || part.synthetic) {
+                continue
+            }
+
+            return { message: msg, textPart: part as TextPart, partIndex: j }
+        }
+    }
+    return null
+}
+
 export function applyPendingManualTrigger(
     state: SessionState,
     messages: WithParts[],
@@ -103,23 +125,12 @@ export function applyPendingManualTrigger(
         return
     }
 
-    for (let i = messages.length - 1; i >= 0; i--) {
-        const msg = messages[i]
-        if (msg.info.role !== "user" || isIgnoredUserMessage(msg)) {
-            continue
-        }
-
-        for (const part of msg.parts) {
-            if (part.type !== "text" || part.ignored || part.synthetic) {
-                continue
-            }
-
-            part.text = pending.prompt
-            state.pendingManualTrigger = null
-            logger.debug("Applied manual prompt", { sessionId: pending.sessionId })
-            return
-        }
+    const result = findUserTextPartToReplace(messages)
+    if (result) {
+        result.textPart.text = pending.prompt
+        state.pendingManualTrigger = null
+        logger.debug("Applied manual prompt", { sessionId: pending.sessionId })
+    } else {
+        state.pendingManualTrigger = null
     }
-
-    state.pendingManualTrigger = null
 }

@@ -1,5 +1,5 @@
 import type { SessionState } from "../state"
-import { getTotalToolTokens } from "../token-counting"
+import { getTotalToolTokens } from "../token-counting-tools"
 
 /**
  * Shared marking logic for pruning strategies.

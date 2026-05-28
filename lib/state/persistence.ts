@@ -110,6 +110,51 @@ export async function saveSessionState(
     }
 }
 
+function validatePersistedSessionState(
+    state: any,
+    sessionId: string,
+    logger: Logger,
+): state is PersistedSessionState {
+    const hasPruneTools = state?.prune?.tools && typeof state.prune.tools === "object"
+    const hasPruneMessages = state?.prune?.messages && typeof state.prune.messages === "object"
+    const hasNudgeFormat = state?.nudges && typeof state.nudges === "object"
+    if (
+        !state ||
+        !state.prune ||
+        !hasPruneTools ||
+        !hasPruneMessages ||
+        !state.stats ||
+        !hasNudgeFormat
+    ) {
+        logger.warn("Invalid session state file, ignoring", {
+            sessionId,
+        })
+        return false
+    }
+    return true
+}
+
+function normalizeNudgeAnchorList(
+    raw: unknown,
+    anchorKind: string,
+    sessionId: string,
+    logger: Logger,
+): string[] {
+    const rawAnchors = Array.isArray(raw) ? raw : []
+    const validAnchors = rawAnchors.filter(
+        (entry): entry is string => typeof entry === "string",
+    )
+    const deduped = [...new Set(validAnchors)]
+    if (validAnchors.length !== rawAnchors.length) {
+        logger.warn(`Filtered out malformed ${anchorKind} entries`, {
+            sessionId,
+            original: rawAnchors.length,
+            valid: validAnchors.length,
+        })
+    }
+    return deduped
+}
+
 export async function loadSessionState(
     sessionId: string,
     logger: Logger,
@@ -124,79 +169,37 @@ export async function loadSessionState(
         const content = await fs.readFile(filePath, "utf-8")
         const state = JSON.parse(content) as PersistedSessionState
 
-        const hasPruneTools = state?.prune?.tools && typeof state.prune.tools === "object"
-        const hasPruneMessages = state?.prune?.messages && typeof state.prune.messages === "object"
-        const hasNudgeFormat = state?.nudges && typeof state.nudges === "object"
-        if (
-            !state ||
-            !state.prune ||
-            !hasPruneTools ||
-            !hasPruneMessages ||
-            !state.stats ||
-            !hasNudgeFormat
-        ) {
-            logger.warn("Invalid session state file, ignoring", {
-                sessionId: sessionId,
-            })
+        if (!validatePersistedSessionState(state, sessionId, logger)) {
             return null
         }
 
-        const rawContextLimitAnchors = Array.isArray(state.nudges.contextLimitAnchors)
-            ? state.nudges.contextLimitAnchors
-            : []
-        const validAnchors = rawContextLimitAnchors.filter(
-            (entry): entry is string => typeof entry === "string",
+        state.nudges.contextLimitAnchors = normalizeNudgeAnchorList(
+            state.nudges.contextLimitAnchors,
+            "contextLimitAnchors",
+            sessionId,
+            logger,
         )
-        const dedupedAnchors = [...new Set(validAnchors)]
-        if (validAnchors.length !== rawContextLimitAnchors.length) {
-            logger.warn("Filtered out malformed contextLimitAnchors entries", {
-                sessionId: sessionId,
-                original: rawContextLimitAnchors.length,
-                valid: validAnchors.length,
-            })
-        }
-        state.nudges.contextLimitAnchors = dedupedAnchors
-
-        const rawTurnNudgeAnchors = Array.isArray(state.nudges.turnNudgeAnchors)
-            ? state.nudges.turnNudgeAnchors
-            : []
-        const validSoftAnchors = rawTurnNudgeAnchors.filter(
-            (entry): entry is string => typeof entry === "string",
+        state.nudges.turnNudgeAnchors = normalizeNudgeAnchorList(
+            state.nudges.turnNudgeAnchors,
+            "turnNudgeAnchors",
+            sessionId,
+            logger,
         )
-        const dedupedSoftAnchors = [...new Set(validSoftAnchors)]
-        if (validSoftAnchors.length !== rawTurnNudgeAnchors.length) {
-            logger.warn("Filtered out malformed turnNudgeAnchors entries", {
-                sessionId: sessionId,
-                original: rawTurnNudgeAnchors.length,
-                valid: validSoftAnchors.length,
-            })
-        }
-        state.nudges.turnNudgeAnchors = dedupedSoftAnchors
-
-        const rawIterationNudgeAnchors = Array.isArray(state.nudges.iterationNudgeAnchors)
-            ? state.nudges.iterationNudgeAnchors
-            : []
-        const validIterationAnchors = rawIterationNudgeAnchors.filter(
-            (entry): entry is string => typeof entry === "string",
+        state.nudges.iterationNudgeAnchors = normalizeNudgeAnchorList(
+            state.nudges.iterationNudgeAnchors,
+            "iterationNudgeAnchors",
+            sessionId,
+            logger,
         )
-        const dedupedIterationAnchors = [...new Set(validIterationAnchors)]
-        if (validIterationAnchors.length !== rawIterationNudgeAnchors.length) {
-            logger.warn("Filtered out malformed iterationNudgeAnchors entries", {
-                sessionId: sessionId,
-                original: rawIterationNudgeAnchors.length,
-                valid: validIterationAnchors.length,
-            })
-        }
-        state.nudges.iterationNudgeAnchors = dedupedIterationAnchors
 
         logger.info("Loaded session state from disk", {
-            sessionId: sessionId,
+            sessionId,
         })
 
         return state
     } catch (error: any) {
         logger.warn("Failed to load session state", {
-            sessionId: sessionId,
+            sessionId,
             error: error?.message,
         })
         return null
@@ -210,37 +213,40 @@ export interface AggregatedStats {
     sessionCount: number
 }
 
-export async function loadAllSessionStats(logger: Logger): Promise<AggregatedStats> {
-    const result: AggregatedStats = {
-        totalTokens: 0,
-        totalTools: 0,
-        totalMessages: 0,
-        sessionCount: 0,
+async function accumulateSessionFileStats(file: string): Promise<AggregatedStats | null> {
+    const filePath = join(STORAGE_DIR, file)
+    const content = await fs.readFile(filePath, "utf-8")
+    const state = JSON.parse(content) as PersistedSessionState
+
+    if (!state?.stats?.totalPruneTokens || !state?.prune) return null
+
+    return {
+        totalTokens: state.stats.totalPruneTokens,
+        totalTools: state.prune.tools ? Object.keys(state.prune.tools).length : 0,
+        totalMessages: state.prune.messages?.byMessageId
+            ? Object.keys(state.prune.messages.byMessageId).length
+            : 0,
+        sessionCount: 1,
     }
+}
+
+export async function loadAllSessionStats(logger: Logger): Promise<AggregatedStats> {
+    const result: AggregatedStats = { totalTokens: 0, totalTools: 0, totalMessages: 0, sessionCount: 0 }
 
     try {
-        if (!existsSync(STORAGE_DIR)) {
-            return result
-        }
+        if (!existsSync(STORAGE_DIR)) return result
 
         const files = await fs.readdir(STORAGE_DIR)
         const jsonFiles = files.filter((f) => f.endsWith(".json"))
 
         for (const file of jsonFiles) {
             try {
-                const filePath = join(STORAGE_DIR, file)
-                const content = await fs.readFile(filePath, "utf-8")
-                const state = JSON.parse(content) as PersistedSessionState
-
-                if (state?.stats?.totalPruneTokens && state?.prune) {
-                    result.totalTokens += state.stats.totalPruneTokens
-                    result.totalTools += state.prune.tools
-                        ? Object.keys(state.prune.tools).length
-                        : 0
-                    result.totalMessages += state.prune.messages?.byMessageId
-                        ? Object.keys(state.prune.messages.byMessageId).length
-                        : 0
-                    result.sessionCount++
+                const contribution = await accumulateSessionFileStats(file)
+                if (contribution) {
+                    result.totalTokens += contribution.totalTokens
+                    result.totalTools += contribution.totalTools
+                    result.totalMessages += contribution.totalMessages
+                    result.sessionCount += contribution.sessionCount
                 }
             } catch {
                 // Skip invalid files

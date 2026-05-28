@@ -101,7 +101,7 @@ export function createSessionState(): SessionState {
     }
 }
 
-export function resetSessionState(state: SessionState): void {
+function resetSessionState(state: SessionState): void {
     state.sessionId = null
     state.isSubAgent = false
     state.manualMode = false
@@ -134,33 +134,11 @@ export function resetSessionState(state: SessionState): void {
     state.systemPromptTokens = undefined
 }
 
-export async function ensureSessionInitialized(
-    client: any,
+async function loadAndMergePersistedState(
     state: SessionState,
     sessionId: string,
     logger: Logger,
-    messages: WithParts[],
-    manualModeEnabled: boolean,
 ): Promise<void> {
-    if (state.sessionId === sessionId) {
-        return
-    }
-
-    // logger.info("session ID = " + sessionId)
-    // logger.info("Initializing session state", { sessionId: sessionId })
-
-    resetSessionState(state)
-    state.manualMode = manualModeEnabled ? "active" : false
-    state.sessionId = sessionId
-
-    const isSubAgent = await isSubAgentSession(client, sessionId)
-    state.isSubAgent = isSubAgent
-    // logger.info("isSubAgent = " + isSubAgent)
-
-    state.lastCompaction = findLastCompactionTimestamp(messages)
-    state.currentTurn = countTurns(state, messages)
-    state.nudges.turnNudgeAnchors = collectTurnNudgeAnchors(messages)
-
     const persisted = await loadSessionState(sessionId, logger)
     if (persisted === null) {
         return
@@ -180,6 +158,32 @@ export async function ensureSessionInitialized(
         pruneTokenCounter: persisted.stats?.pruneTokenCounter || 0,
         totalPruneTokens: persisted.stats?.totalPruneTokens || 0,
     }
+}
+
+export async function ensureSessionInitialized(
+    client: any,
+    state: SessionState,
+    sessionId: string,
+    logger: Logger,
+    messages: WithParts[],
+    manualModeEnabled: boolean,
+): Promise<void> {
+    if (state.sessionId === sessionId) {
+        return
+    }
+
+    resetSessionState(state)
+    state.manualMode = manualModeEnabled ? "active" : false
+    state.sessionId = sessionId
+
+    const isSubAgent = await isSubAgentSession(client, sessionId)
+    state.isSubAgent = isSubAgent
+
+    state.lastCompaction = findLastCompactionTimestamp(messages)
+    state.currentTurn = countTurns(state, messages)
+    state.nudges.turnNudgeAnchors = collectTurnNudgeAnchors(messages)
+
+    await loadAndMergePersistedState(state, sessionId, logger)
 
     const applied = applyPendingCompressionDurations(state)
     if (applied > 0) {

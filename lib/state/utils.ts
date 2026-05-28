@@ -1,5 +1,6 @@
 import type {
     CompressionBlock,
+    CompressionMode,
     PruneMessagesState,
     PrunedMessageEntry,
     SessionState,
@@ -7,7 +8,7 @@ import type {
 } from "./types"
 import { isIgnoredUserMessage, messageHasCompress } from "../messages/query"
 import { isMessageWithInfo } from "../messages/shape"
-import { countTokens } from "../token-utils"
+import { countTokens } from "../token-counting"
 
 export const isMessageCompacted = (state: SessionState, msg: WithParts): boolean => {
     if (!isMessageWithInfo(msg)) {
@@ -22,6 +23,14 @@ export const isMessageCompacted = (state: SessionState, msg: WithParts): boolean
         return true
     }
     return false
+}
+
+export function getMessageParts(
+    state: SessionState,
+    msg: WithParts,
+): WithParts["parts"] | null {
+    if (isMessageCompacted(state, msg)) return null
+    return Array.isArray(msg.parts) ? msg.parts : []
 }
 
 interface PersistedPruneMessagesState {
@@ -79,10 +88,8 @@ export function countTurns(state: SessionState, messages: WithParts[]): number {
         if (!isMessageWithInfo(msg)) {
             continue
         }
-        if (isMessageCompacted(state, msg)) {
-            continue
-        }
-        const parts = Array.isArray(msg.parts) ? msg.parts : []
+        const parts = getMessageParts(state, msg)
+        if (!parts) continue
         for (const part of parts) {
             if (part.type === "step-start") {
                 turnCount++
@@ -115,161 +122,225 @@ export function createPruneMessagesState(): PruneMessagesState {
     }
 }
 
-export function loadPruneMessagesState(
-    persisted?: PersistedPruneMessagesState,
-): PruneMessagesState {
-    const state = createPruneMessagesState()
-    if (!persisted || typeof persisted !== "object") {
-        return state
-    }
+function filterNumberArray(value: unknown): number[] {
+    return Array.isArray(value)
+        ? [
+              ...new Set(
+                  value.filter(
+                      (item): item is number => Number.isInteger(item) && item > 0,
+                  ),
+              ),
+          ]
+        : []
+}
 
-    if (typeof persisted.nextBlockId === "number" && Number.isInteger(persisted.nextBlockId)) {
-        state.nextBlockId = Math.max(1, persisted.nextBlockId)
-    }
-    if (typeof persisted.nextRunId === "number" && Number.isInteger(persisted.nextRunId)) {
-        state.nextRunId = Math.max(1, persisted.nextRunId)
-    }
+function filterStringArray(value: unknown): string[] {
+    return Array.isArray(value)
+        ? [...new Set(value.filter((item): item is string => typeof item === "string"))]
+        : []
+}
 
-    if (persisted.byMessageId && typeof persisted.byMessageId === "object") {
-        for (const [messageId, entry] of Object.entries(persisted.byMessageId)) {
-            if (!entry || typeof entry !== "object") {
-                continue
-            }
+function loadNextCounters(
+    state: PruneMessagesState,
+    nextBlockId: number,
+    nextRunId: number,
+): void {
+    if (typeof nextBlockId === "number" && Number.isInteger(nextBlockId)) {
+        state.nextBlockId = Math.max(1, nextBlockId)
+    }
+    if (typeof nextRunId === "number" && Number.isInteger(nextRunId)) {
+        state.nextRunId = Math.max(1, nextRunId)
+    }
+}
 
-            const tokenCount = typeof entry.tokenCount === "number" ? entry.tokenCount : 0
-            const allBlockIds = Array.isArray(entry.allBlockIds)
-                ? [
-                      ...new Set(
-                          entry.allBlockIds.filter(
-                              (id): id is number => Number.isInteger(id) && id > 0,
-                          ),
+function loadByMessageIdEntries(
+    state: PruneMessagesState,
+    byMessageId: Record<string, PrunedMessageEntry>,
+): void {
+    if (!byMessageId || typeof byMessageId !== "object") {
+        return
+    }
+    for (const [messageId, entry] of Object.entries(byMessageId)) {
+        if (!entry || typeof entry !== "object") {
+            continue
+        }
+        const tokenCount = typeof entry.tokenCount === "number" ? entry.tokenCount : 0
+        const allBlockIds = Array.isArray(entry.allBlockIds)
+            ? [
+                  ...new Set(
+                      entry.allBlockIds.filter(
+                          (id): id is number => Number.isInteger(id) && id > 0,
                       ),
-                  ]
-                : []
-            const activeBlockIds = Array.isArray(entry.activeBlockIds)
-                ? [
-                      ...new Set(
-                          entry.activeBlockIds.filter(
-                              (id): id is number => Number.isInteger(id) && id > 0,
-                          ),
+                  ),
+              ]
+            : []
+        const activeBlockIds = Array.isArray(entry.activeBlockIds)
+            ? [
+                  ...new Set(
+                      entry.activeBlockIds.filter(
+                          (id): id is number => Number.isInteger(id) && id > 0,
                       ),
-                  ]
-                : []
-
-            state.byMessageId.set(messageId, {
-                tokenCount,
-                allBlockIds,
-                activeBlockIds,
-            })
-        }
+                  ),
+              ]
+            : []
+        state.byMessageId.set(messageId, {
+            tokenCount,
+            allBlockIds,
+            activeBlockIds,
+        })
     }
+}
 
-    if (persisted.blocksById && typeof persisted.blocksById === "object") {
-        for (const [blockIdStr, block] of Object.entries(persisted.blocksById)) {
-            const blockId = Number.parseInt(blockIdStr, 10)
-            if (!Number.isInteger(blockId) || blockId < 1 || !block || typeof block !== "object") {
-                continue
-            }
+function parseBlockNumeric(
+    value: unknown,
+    fallback: number = 0,
+): number {
+    return typeof value === "number" && Number.isFinite(value)
+        ? Math.max(0, value)
+        : fallback
+}
 
-            const toNumberArray = (value: unknown): number[] =>
-                Array.isArray(value)
-                    ? [
-                          ...new Set(
-                              value.filter(
-                                  (item): item is number => Number.isInteger(item) && item > 0,
-                              ),
-                          ),
-                      ]
-                    : []
-            const toStringArray = (value: unknown): string[] =>
-                Array.isArray(value)
-                    ? [...new Set(value.filter((item): item is string => typeof item === "string"))]
-                    : []
+function parseBlockRunId(block: CompressionBlock, blockId: number): number {
+    return typeof block.runId === "number" &&
+        Number.isInteger(block.runId) &&
+        block.runId > 0
+        ? block.runId
+        : blockId
+}
 
-            state.blocksById.set(blockId, {
-                blockId,
-                runId:
-                    typeof block.runId === "number" &&
-                    Number.isInteger(block.runId) &&
-                    block.runId > 0
-                        ? block.runId
-                        : blockId,
-                active: block.active === true,
-                deactivatedByUser: block.deactivatedByUser === true,
-                compressedTokens:
-                    typeof block.compressedTokens === "number" &&
-                    Number.isFinite(block.compressedTokens)
-                        ? Math.max(0, block.compressedTokens)
-                        : 0,
-                summaryTokens:
-                    typeof block.summaryTokens === "number" && Number.isFinite(block.summaryTokens)
-                        ? Math.max(0, block.summaryTokens)
-                        : typeof block.summary === "string"
-                          ? countTokens(block.summary)
-                          : 0,
-                durationMs:
-                    typeof block.durationMs === "number" && Number.isFinite(block.durationMs)
-                        ? Math.max(0, block.durationMs)
-                        : 0,
-                mode: block.mode === "range" || block.mode === "message" ? block.mode : undefined,
-                topic: typeof block.topic === "string" ? block.topic : "",
-                batchTopic:
-                    typeof block.batchTopic === "string"
-                        ? block.batchTopic
-                        : typeof block.topic === "string"
-                          ? block.topic
-                          : "",
-                startId: typeof block.startId === "string" ? block.startId : "",
-                endId: typeof block.endId === "string" ? block.endId : "",
-                anchorMessageId:
-                    typeof block.anchorMessageId === "string" ? block.anchorMessageId : "",
-                compressMessageId:
-                    typeof block.compressMessageId === "string" ? block.compressMessageId : "",
-                compressCallId:
-                    typeof block.compressCallId === "string" ? block.compressCallId : undefined,
-                includedBlockIds: toNumberArray(block.includedBlockIds),
-                consumedBlockIds: toNumberArray(block.consumedBlockIds),
-                parentBlockIds: toNumberArray(block.parentBlockIds),
-                directMessageIds: toStringArray(block.directMessageIds),
-                directToolIds: toStringArray(block.directToolIds),
-                effectiveMessageIds: toStringArray(block.effectiveMessageIds),
-                effectiveToolIds: toStringArray(block.effectiveToolIds),
-                createdAt: typeof block.createdAt === "number" ? block.createdAt : 0,
-                deactivatedAt:
-                    typeof block.deactivatedAt === "number" ? block.deactivatedAt : undefined,
-                deactivatedByBlockId:
-                    typeof block.deactivatedByBlockId === "number" &&
-                    Number.isInteger(block.deactivatedByBlockId)
-                        ? block.deactivatedByBlockId
-                        : undefined,
-                summary: typeof block.summary === "string" ? block.summary : "",
-            })
-        }
-    }
-
-    if (Array.isArray(persisted.activeBlockIds)) {
-        for (const blockId of persisted.activeBlockIds) {
-            if (!Number.isInteger(blockId) || blockId < 1) {
-                continue
-            }
-            state.activeBlockIds.add(blockId)
-        }
-    }
-
+function parseBlockSummaryTokens(block: CompressionBlock): number {
     if (
-        persisted.activeByAnchorMessageId &&
-        typeof persisted.activeByAnchorMessageId === "object"
+        typeof block.summaryTokens === "number" &&
+        Number.isFinite(block.summaryTokens)
     ) {
-        for (const [anchorMessageId, blockId] of Object.entries(
-            persisted.activeByAnchorMessageId,
-        )) {
-            if (typeof blockId !== "number" || !Number.isInteger(blockId) || blockId < 1) {
-                continue
-            }
-            state.activeByAnchorMessageId.set(anchorMessageId, blockId)
-        }
+        return Math.max(0, block.summaryTokens)
     }
+    if (typeof block.summary === "string") {
+        return countTokens(block.summary)
+    }
+    return 0
+}
 
+function parseBlockBatchTopic(block: CompressionBlock): string {
+    return typeof block.batchTopic === "string"
+        ? block.batchTopic
+        : typeof block.topic === "string"
+          ? block.topic
+          : ""
+}
+
+function parseBlockMode(block: CompressionBlock): CompressionMode | undefined {
+    return block.mode === "range" || block.mode === "message"
+        ? block.mode
+        : undefined
+}
+
+function parseBlockOptionalString(value: unknown, fallback: string): string {
+    return typeof value === "string" ? value : fallback
+}
+
+function parseBlockUndefinedString(value: unknown): string | undefined {
+    return typeof value === "string" ? value : undefined
+}
+
+function parseBlockOptionalNumber(value: unknown): number | undefined {
+    return typeof value === "number" && Number.isInteger(value)
+        ? value
+        : undefined
+}
+
+function buildBlockEntry(
+    blockId: number,
+    block: CompressionBlock,
+): CompressionBlock {
+    return {
+        blockId,
+        runId: parseBlockRunId(block, blockId),
+        active: block.active === true,
+        deactivatedByUser: block.deactivatedByUser === true,
+        compressedTokens: parseBlockNumeric(block.compressedTokens),
+        summaryTokens: parseBlockSummaryTokens(block),
+        durationMs: parseBlockNumeric(block.durationMs),
+        mode: parseBlockMode(block),
+        topic: parseBlockOptionalString(block.topic, ""),
+        batchTopic: parseBlockBatchTopic(block),
+        startId: parseBlockOptionalString(block.startId, ""),
+        endId: parseBlockOptionalString(block.endId, ""),
+        anchorMessageId: parseBlockOptionalString(block.anchorMessageId, ""),
+        compressMessageId: parseBlockOptionalString(block.compressMessageId, ""),
+        compressCallId: parseBlockUndefinedString(block.compressCallId),
+        includedBlockIds: filterNumberArray(block.includedBlockIds),
+        consumedBlockIds: filterNumberArray(block.consumedBlockIds),
+        parentBlockIds: filterNumberArray(block.parentBlockIds),
+        directMessageIds: filterStringArray(block.directMessageIds),
+        directToolIds: filterStringArray(block.directToolIds),
+        effectiveMessageIds: filterStringArray(block.effectiveMessageIds),
+        effectiveToolIds: filterStringArray(block.effectiveToolIds),
+        createdAt: typeof block.createdAt === "number" ? block.createdAt : 0,
+        deactivatedAt: parseBlockOptionalNumber(block.deactivatedAt),
+        deactivatedByBlockId: parseBlockOptionalNumber(block.deactivatedByBlockId),
+        summary: parseBlockOptionalString(block.summary, ""),
+    }
+}
+
+function loadBlocksByIdEntries(
+    state: PruneMessagesState,
+    blocksById: Record<string, CompressionBlock>,
+): void {
+    if (!blocksById || typeof blocksById !== "object") {
+        return
+    }
+    for (const [blockIdStr, block] of Object.entries(blocksById)) {
+        const blockId = Number.parseInt(blockIdStr, 10)
+        if (
+            !Number.isInteger(blockId) ||
+            blockId < 1 ||
+            !block ||
+            typeof block !== "object"
+        ) {
+            continue
+        }
+        state.blocksById.set(blockId, buildBlockEntry(blockId, block))
+    }
+}
+
+function loadActiveBlockIdsFromArray(
+    state: PruneMessagesState,
+    activeBlockIds: number[],
+): void {
+    if (!Array.isArray(activeBlockIds)) {
+        return
+    }
+    for (const blockId of activeBlockIds) {
+        if (!Number.isInteger(blockId) || blockId < 1) {
+            continue
+        }
+        state.activeBlockIds.add(blockId)
+    }
+}
+
+function loadActiveByAnchorMessageIdFromRecord(
+    state: PruneMessagesState,
+    activeByAnchorMessageId: Record<string, number>,
+): void {
+    if (!activeByAnchorMessageId || typeof activeByAnchorMessageId !== "object") {
+        return
+    }
+    for (const [anchorMessageId, blockId] of Object.entries(
+        activeByAnchorMessageId,
+    )) {
+        if (
+            typeof blockId !== "number" ||
+            !Number.isInteger(blockId) ||
+            blockId < 1
+        ) {
+            continue
+        }
+        state.activeByAnchorMessageId.set(anchorMessageId, blockId)
+    }
+}
+
+function reconcileBlocksState(state: PruneMessagesState): void {
     for (const [blockId, block] of state.blocksById) {
         if (block.active) {
             state.activeBlockIds.add(blockId)
@@ -284,7 +355,21 @@ export function loadPruneMessagesState(
             state.nextRunId = block.runId + 1
         }
     }
+}
 
+export function loadPruneMessagesState(
+    persisted?: PersistedPruneMessagesState,
+): PruneMessagesState {
+    const state = createPruneMessagesState()
+    if (!persisted || typeof persisted !== "object") {
+        return state
+    }
+    loadNextCounters(state, persisted.nextBlockId, persisted.nextRunId)
+    loadByMessageIdEntries(state, persisted.byMessageId)
+    loadBlocksByIdEntries(state, persisted.blocksById)
+    loadActiveBlockIdsFromArray(state, persisted.activeBlockIds)
+    loadActiveByAnchorMessageIdFromRecord(state, persisted.activeByAnchorMessageId)
+    reconcileBlocksState(state)
     return state
 }
 

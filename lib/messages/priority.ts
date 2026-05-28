@@ -1,5 +1,5 @@
 import type { PluginConfig } from "../config"
-import { countAllMessageTokens } from "../token-utils"
+import { countAllMessageTokens } from "../token-counting"
 import { isMessageCompacted } from "../state/utils"
 import type { SessionState, WithParts } from "../state"
 import { isIgnoredUserMessage, isProtectedUserMessage, messageHasCompress } from "./query"
@@ -17,51 +17,46 @@ export interface CompressionPriorityEntry {
 
 export type CompressionPriorityMap = Map<string, CompressionPriorityEntry>
 
+function isMessageEligibleForPriority(
+    config: PluginConfig,
+    state: SessionState,
+    message: WithParts,
+): boolean {
+    if (isIgnoredUserMessage(message)) return false
+    if (isProtectedUserMessage(config, message)) return false
+    if (isMessageCompacted(state, message)) return false
+    const rawMessageId = message.info.id
+    if (typeof rawMessageId !== "string" || rawMessageId.length === 0) return false
+    return true
+}
+
+function resolveEffectivePriority(message: WithParts, tokenCount: number): MessagePriority {
+    return messageHasCompress(message) ? "high" : classifyMessagePriority(tokenCount)
+}
+
 export function buildPriorityMap(
     config: PluginConfig,
     state: SessionState,
     messages: WithParts[],
 ): CompressionPriorityMap {
-    if (config.compress.mode !== "message") {
-        return new Map()
-    }
+    if (config.compress.mode !== "message") return new Map()
     const priorities: CompressionPriorityMap = new Map()
-
     for (const message of messages) {
-        if (isIgnoredUserMessage(message)) {
-            continue
-        }
-
-        if (isProtectedUserMessage(config, message)) {
-            continue
-        }
-
-        if (isMessageCompacted(state, message)) {
-            continue
-        }
-
-        const rawMessageId = message.info.id
-        if (typeof rawMessageId !== "string" || rawMessageId.length === 0) {
-            continue
-        }
-
+        if (!isMessageEligibleForPriority(config, state, message)) continue
+        const rawMessageId = message.info.id as string
         const ref = state.messageIds.byRawId.get(rawMessageId)
-        if (!ref) {
-            continue
-        }
-
+        if (!ref) continue
         const tokenCount = countAllMessageTokens(message)
         priorities.set(rawMessageId, {
             ref,
             tokenCount,
-            priority: messageHasCompress(message) ? "high" : classifyMessagePriority(tokenCount),
+            priority: resolveEffectivePriority(message, tokenCount),
         })
     }
-
     return priorities
 }
 
-export function classifyMessagePriority(tokenCount: number): MessagePriority {
+function classifyMessagePriority(tokenCount: number): MessagePriority {
     if (tokenCount >= HIGH_PRIORITY_MIN_TOKENS) {
         return "high"
     }

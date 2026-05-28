@@ -27,30 +27,50 @@ export function consumeCompressionStart(
     return start
 }
 
+function resolveRunningAt(
+    partTime: { start?: unknown; end?: unknown } | undefined,
+    eventTime: number | undefined,
+): number | undefined {
+    if (typeof partTime?.start === "number" && Number.isFinite(partTime.start)) {
+        return partTime.start
+    }
+    return eventTime
+}
+
+function computePendingToRunningMs(
+    startedAt: number | undefined,
+    runningAt: number | undefined,
+): number | undefined {
+    if (typeof startedAt === "number" && typeof runningAt === "number") {
+        return Math.max(0, runningAt - startedAt)
+    }
+    return undefined
+}
+
+function computeToolRuntimeMs(
+    partTime: { start?: unknown; end?: unknown } | undefined,
+): number | undefined {
+    const toolStart = partTime?.start
+    const toolEnd = partTime?.end
+    if (
+        typeof toolStart === "number" &&
+        Number.isFinite(toolStart) &&
+        typeof toolEnd === "number" &&
+        Number.isFinite(toolEnd)
+    ) {
+        return Math.max(0, toolEnd - toolStart)
+    }
+    return undefined
+}
+
 export function resolveCompressionDuration(
     startedAt: number | undefined,
     eventTime: number | undefined,
     partTime: { start?: unknown; end?: unknown } | undefined,
 ): number | undefined {
-    const runningAt =
-        typeof partTime?.start === "number" && Number.isFinite(partTime.start)
-            ? partTime.start
-            : eventTime
-    const pendingToRunningMs =
-        typeof startedAt === "number" && typeof runningAt === "number"
-            ? Math.max(0, runningAt - startedAt)
-            : undefined
-
-    const toolStart = partTime?.start
-    const toolEnd = partTime?.end
-    const runtimeMs =
-        typeof toolStart === "number" &&
-        Number.isFinite(toolStart) &&
-        typeof toolEnd === "number" &&
-        Number.isFinite(toolEnd)
-            ? Math.max(0, toolEnd - toolStart)
-            : undefined
-
+    const runningAt = resolveRunningAt(partTime, eventTime)
+    const pendingToRunningMs = computePendingToRunningMs(startedAt, runningAt)
+    const runtimeMs = computeToolRuntimeMs(partTime)
     return typeof pendingToRunningMs === "number" ? pendingToRunningMs : runtimeMs
 }
 

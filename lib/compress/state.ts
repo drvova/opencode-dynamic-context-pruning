@@ -1,4 +1,4 @@
-import type { CompressionBlock, PruneMessagesState, SessionState } from "../state"
+import type { CompressionBlock, PrunedMessageEntry, PruneMessagesState, SessionState } from "../state"
 import { formatBlockRef, formatMessageIdTag } from "../message-ids"
 import type { AppliedCompressionResult, CompressionStateInput, SelectionResolution } from "./types"
 
@@ -59,27 +59,21 @@ export function wrapCompressedSummary(blockId: number, summary: string): string 
     return `${header}\n${body}\n\n${footer}`
 }
 
-export function applyCompressionState(
-    state: SessionState,
-    input: CompressionStateInput,
-    selection: SelectionResolution,
-    anchorMessageId: string,
-    blockId: number,
-    summary: string,
-    consumedBlockIds: number[],
-): AppliedCompressionResult {
-    const messagesState = state.prune.messages
-    const consumed = [...new Set(consumedBlockIds.filter((id) => Number.isInteger(id) && id > 0))]
-    const included = [...consumed]
+function dedupConsumedBlockIds(consumedBlockIds: number[]): number[] {
+    return [...new Set(consumedBlockIds.filter((id) => Number.isInteger(id) && id > 0))]
+}
 
+function buildEffectiveIdSets(
+    messagesState: PruneMessagesState,
+    selection: SelectionResolution,
+    consumed: number[],
+): { effectiveMessageIds: Set<string>; effectiveToolIds: Set<string> } {
     const effectiveMessageIds = new Set<string>(selection.messageIds)
     const effectiveToolIds = new Set<string>(selection.toolIds)
 
     for (const consumedBlockId of consumed) {
         const consumedBlock = messagesState.blocksById.get(consumedBlockId)
-        if (!consumedBlock) {
-            continue
-        }
+        if (!consumedBlock) continue
         for (const messageId of consumedBlock.effectiveMessageIds) {
             effectiveMessageIds.add(messageId)
         }
@@ -88,6 +82,13 @@ export function applyCompressionState(
         }
     }
 
+    return { effectiveMessageIds, effectiveToolIds }
+}
+
+function collectInitiallyActive(
+    messagesState: PruneMessagesState,
+    effectiveMessageIds: Set<string>,
+): { initiallyActiveMessages: Set<string>; initiallyActiveToolIds: Set<string> } {
     const initiallyActiveMessages = new Set<string>()
     for (const messageId of effectiveMessageIds) {
         const entry = messagesState.byMessageId.get(messageId)
@@ -99,17 +100,26 @@ export function applyCompressionState(
     const initiallyActiveToolIds = new Set<string>()
     for (const activeBlockId of messagesState.activeBlockIds) {
         const activeBlock = messagesState.blocksById.get(activeBlockId)
-        if (!activeBlock || !activeBlock.active) {
-            continue
-        }
-
+        if (!activeBlock || !activeBlock.active) continue
         for (const toolId of activeBlock.effectiveToolIds) {
             initiallyActiveToolIds.add(toolId)
         }
     }
 
-    const createdAt = Date.now()
-    const block: CompressionBlock = {
+    return { initiallyActiveMessages, initiallyActiveToolIds }
+}
+
+function makeCompressionBlock(
+    input: CompressionStateInput,
+    anchorMessageId: string,
+    blockId: number,
+    summary: string,
+    consumed: number[],
+    included: number[],
+    effectiveMessageIds: Set<string>,
+    effectiveToolIds: Set<string>,
+): CompressionBlock {
+    return {
         blockId,
         runId: input.runId,
         active: true,
@@ -132,10 +142,18 @@ export function applyCompressionState(
         directToolIds: [],
         effectiveMessageIds: [...effectiveMessageIds],
         effectiveToolIds: [...effectiveToolIds],
-        createdAt,
+        createdAt: Date.now(),
         summary,
     }
+}
 
+function registerAndDeactivateBlock(
+    messagesState: PruneMessagesState,
+    blockId: number,
+    block: CompressionBlock,
+    anchorMessageId: string,
+    consumed: number[],
+): void {
     messagesState.blocksById.set(blockId, block)
     messagesState.activeBlockIds.add(blockId)
     messagesState.activeByAnchorMessageId.set(anchorMessageId, blockId)
@@ -143,9 +161,7 @@ export function applyCompressionState(
     const deactivatedAt = Date.now()
     for (const consumedBlockId of consumed) {
         const consumedBlock = messagesState.blocksById.get(consumedBlockId)
-        if (!consumedBlock || !consumedBlock.active) {
-            continue
-        }
+        if (!consumedBlock || !consumedBlock.active) continue
 
         consumedBlock.active = false
         consumedBlock.deactivatedAt = deactivatedAt
@@ -155,84 +171,92 @@ export function applyCompressionState(
         }
 
         messagesState.activeBlockIds.delete(consumedBlockId)
-        const mappedBlockId = messagesState.activeByAnchorMessageId.get(
-            consumedBlock.anchorMessageId,
-        )
+        const mappedBlockId = messagesState.activeByAnchorMessageId.get(consumedBlock.anchorMessageId)
         if (mappedBlockId === consumedBlockId) {
             messagesState.activeByAnchorMessageId.delete(consumedBlock.anchorMessageId)
         }
     }
+}
 
-    const removeActiveBlockId = (
-        entry: { activeBlockIds: number[] },
-        blockIdToRemove: number,
-    ): void => {
-        if (entry.activeBlockIds.length === 0) {
-            return
-        }
-        entry.activeBlockIds = entry.activeBlockIds.filter((id) => id !== blockIdToRemove)
-    }
-
+function cleanupConsumedFromEntries(
+    messagesState: PruneMessagesState,
+    consumed: number[],
+): void {
     for (const consumedBlockId of consumed) {
         const consumedBlock = messagesState.blocksById.get(consumedBlockId)
-        if (!consumedBlock) {
-            continue
-        }
+        if (!consumedBlock) continue
         for (const messageId of consumedBlock.effectiveMessageIds) {
             const entry = messagesState.byMessageId.get(messageId)
-            if (!entry) {
-                continue
-            }
-            removeActiveBlockId(entry, consumedBlockId)
+            if (!entry || entry.activeBlockIds.length === 0) continue
+            entry.activeBlockIds = entry.activeBlockIds.filter((id) => id !== consumedBlockId)
         }
     }
+}
 
+function ensureBlockInEntry(entry: PrunedMessageEntry, blockId: number): void {
+    if (!entry.allBlockIds.includes(blockId)) {
+        entry.allBlockIds.push(blockId)
+    }
+    if (!entry.activeBlockIds.includes(blockId)) {
+        entry.activeBlockIds.push(blockId)
+    }
+}
+
+function upsertMessageEntry(
+    byMessageId: Map<string, PrunedMessageEntry>,
+    messageId: string,
+    tokenCount: number,
+    blockId: number,
+): void {
+    const existing = byMessageId.get(messageId)
+    if (!existing) {
+        byMessageId.set(messageId, {
+            tokenCount,
+            allBlockIds: [blockId],
+            activeBlockIds: [blockId],
+        })
+        return
+    }
+    existing.tokenCount = Math.max(existing.tokenCount, tokenCount)
+    ensureBlockInEntry(existing, blockId)
+}
+
+function updateMessageEntries(
+    messagesState: PruneMessagesState,
+    blockId: number,
+    selection: SelectionResolution,
+    effectiveMessageIds: Set<string>,
+): void {
     for (const messageId of selection.messageIds) {
-        const tokenCount = selection.messageTokenById.get(messageId) || 0
-        const existing = messagesState.byMessageId.get(messageId)
-
-        if (!existing) {
-            messagesState.byMessageId.set(messageId, {
-                tokenCount,
-                allBlockIds: [blockId],
-                activeBlockIds: [blockId],
-            })
-            continue
-        }
-
-        existing.tokenCount = Math.max(existing.tokenCount, tokenCount)
-        if (!existing.allBlockIds.includes(blockId)) {
-            existing.allBlockIds.push(blockId)
-        }
-        if (!existing.activeBlockIds.includes(blockId)) {
-            existing.activeBlockIds.push(blockId)
-        }
+        upsertMessageEntry(
+            messagesState.byMessageId,
+            messageId,
+            selection.messageTokenById.get(messageId) || 0,
+            blockId,
+        )
     }
 
-    for (const messageId of block.effectiveMessageIds) {
-        if (selection.messageTokenById.has(messageId)) {
-            continue
-        }
-
+    for (const messageId of effectiveMessageIds) {
+        if (selection.messageTokenById.has(messageId)) continue
         const existing = messagesState.byMessageId.get(messageId)
-        if (!existing) {
-            continue
-        }
-        if (!existing.allBlockIds.includes(blockId)) {
-            existing.allBlockIds.push(blockId)
-        }
-        if (!existing.activeBlockIds.includes(blockId)) {
-            existing.activeBlockIds.push(blockId)
-        }
+        if (!existing) continue
+        ensureBlockInEntry(existing, blockId)
     }
+}
 
+function computeCompressionStats(
+    messagesState: PruneMessagesState,
+    effectiveMessageIds: Set<string>,
+    effectiveToolIds: Set<string>,
+    initiallyActiveMessages: Set<string>,
+    initiallyActiveToolIds: Set<string>,
+): { compressedTokens: number; newlyCompressedMessageIds: string[]; newlyCompressedToolIds: string[] } {
     let compressedTokens = 0
     const newlyCompressedMessageIds: string[] = []
+
     for (const messageId of effectiveMessageIds) {
         const entry = messagesState.byMessageId.get(messageId)
-        if (!entry) {
-            continue
-        }
+        if (!entry) continue
 
         const isNowActive = entry.activeBlockIds.length > 0
         const wasActive = initiallyActiveMessages.has(messageId)
@@ -250,9 +274,49 @@ export function applyCompressionState(
         }
     }
 
+    return { compressedTokens, newlyCompressedMessageIds, newlyCompressedToolIds }
+}
+
+export function applyCompressionState(
+    state: SessionState,
+    input: CompressionStateInput,
+    selection: SelectionResolution,
+    anchorMessageId: string,
+    blockId: number,
+    summary: string,
+    consumedBlockIds: number[],
+): AppliedCompressionResult {
+    const messagesState = state.prune.messages
+    const consumed = dedupConsumedBlockIds(consumedBlockIds)
+    const included = [...consumed]
+
+    const { effectiveMessageIds, effectiveToolIds } = buildEffectiveIdSets(
+        messagesState, selection, consumed,
+    )
+
+    const { initiallyActiveMessages, initiallyActiveToolIds } = collectInitiallyActive(
+        messagesState, effectiveMessageIds,
+    )
+
+    const block = makeCompressionBlock(
+        input, anchorMessageId, blockId, summary, consumed, included,
+        effectiveMessageIds, effectiveToolIds,
+    )
+
+    registerAndDeactivateBlock(messagesState, blockId, block, anchorMessageId, consumed)
+
+    cleanupConsumedFromEntries(messagesState, consumed)
+
+    updateMessageEntries(messagesState, blockId, selection, effectiveMessageIds)
+
+    const { compressedTokens, newlyCompressedMessageIds, newlyCompressedToolIds } =
+        computeCompressionStats(
+            messagesState, effectiveMessageIds, effectiveToolIds,
+            initiallyActiveMessages, initiallyActiveToolIds,
+        )
+
     block.directMessageIds = [...newlyCompressedMessageIds]
     block.directToolIds = [...newlyCompressedToolIds]
-
     block.compressedTokens = compressedTokens
 
     state.stats.pruneTokenCounter += compressedTokens

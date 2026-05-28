@@ -1,4 +1,5 @@
 import type { WithParts } from "../state"
+import { messageHasCompress } from "../messages/query"
 
 const SUB_AGENT_RESULT_BLOCK_REGEX = /(<task_result>\s*)([\s\S]*?)(\s*<\/task_result>)/i
 
@@ -26,7 +27,7 @@ export function buildSubagentResultText(messages: WithParts[]): string {
     }
 
     const secondToLastAssistant = assistantMessages[assistantMessages.length - 2]
-    if (!assistantMessageHasCompressTool(secondToLastAssistant)) {
+    if (!messageHasCompress(secondToLastAssistant)) {
         return lastText
     }
 
@@ -65,10 +66,3 @@ function getLastTextPart(message: WithParts): string {
     return ""
 }
 
-function assistantMessageHasCompressTool(message: WithParts): boolean {
-    const parts = Array.isArray(message.parts) ? message.parts : []
-    return parts.some(
-        (part) =>
-            part.type === "tool" && part.tool === "compress" && part.state?.status === "completed",
-    )
-}

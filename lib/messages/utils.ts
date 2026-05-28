@@ -115,7 +115,7 @@ export const appendToAllToolParts = (message: WithParts, tag: string): boolean =
     return injected
 }
 
-export const appendToToolPart = (part: ToolPart, tag: string): boolean => {
+const appendToToolPart = (part: ToolPart, tag: string): boolean => {
     if (part.state?.status !== "completed" || typeof part.state.output !== "string") {
         return false
     }
@@ -139,22 +139,21 @@ export const hasContent = (message: WithParts): boolean => {
     )
 }
 
+export function collectToolCallIds(state: SessionState, message: WithParts, toolIds: string[]): void {
+    if (isMessageCompacted(state, message)) return
+    const parts = Array.isArray(message.parts) ? message.parts : []
+    for (const part of parts) {
+        if (part.type === "tool" && part.callID && part.tool) {
+            toolIds.push(part.callID)
+        }
+    }
+}
+
 export function buildToolIdList(state: SessionState, messages: WithParts[]): string[] {
     const toolIds: string[] = []
     for (const msg of messages) {
-        if (isMessageCompacted(state, msg)) {
-            continue
-        }
-        const parts = Array.isArray(msg.parts) ? msg.parts : []
-        if (parts.length > 0) {
-            for (const part of parts) {
-                if (part.type === "tool" && part.callID && part.tool) {
-                    toolIds.push(part.callID)
-                }
-            }
-        }
+        collectToolCallIds(state, msg, toolIds)
     }
-    state.toolIdList = toolIds
     return toolIds
 }
 

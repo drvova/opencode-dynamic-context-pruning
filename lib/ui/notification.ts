@@ -10,8 +10,8 @@ import { ToolParameterEntry } from "../state"
 import { PluginConfig } from "../config"
 import { getActiveSummaryTokenUsage } from "../state/utils"
 
-export type PruneReason = "completion" | "noise" | "extraction"
-export const PRUNE_REASON_LABELS: Record<PruneReason, string> = {
+type PruneReason = "completion" | "noise" | "extraction"
+const PRUNE_REASON_LABELS: Record<PruneReason, string> = {
     completion: "Task Complete",
     noise: "Noise Removal",
     extraction: "Extraction",
@@ -89,7 +89,7 @@ function truncateExtractedSection(
     return message.slice(0, index) + truncateToastSummary(extracted, maxChars)
 }
 
-export async function sendUnifiedNotification(
+async function sendUnifiedNotification(
     client: any,
     logger: Logger,
     config: PluginConfig,
@@ -169,6 +169,129 @@ function formatCompressionMetrics(removedTokens: number, summaryTokens: number):
     return metrics.join(", ")
 }
 
+function collectCompressedBlockIds(
+    entries: CompressionNotificationEntry[],
+    state: SessionState,
+): { messageIds: string[]; toolIds: string[] } {
+    const messageIds: string[] = []
+    const toolIds: string[] = []
+    const seenMessageIds = new Set<string>()
+    const seenToolIds = new Set<string>()
+
+    for (const entry of entries) {
+        const compressionBlock = state.prune.messages.blocksById.get(entry.blockId)
+        if (!compressionBlock) {
+            continue
+        }
+
+        for (const messageId of compressionBlock.directMessageIds) {
+            if (seenMessageIds.has(messageId)) {
+                continue
+            }
+            seenMessageIds.add(messageId)
+            messageIds.push(messageId)
+        }
+
+        for (const toolId of compressionBlock.directToolIds) {
+            if (seenToolIds.has(toolId)) {
+                continue
+            }
+            seenToolIds.add(toolId)
+            toolIds.push(toolId)
+        }
+    }
+
+    return { messageIds, toolIds }
+}
+
+function resolveCompressionTopic(
+    entries: CompressionNotificationEntry[],
+    batchTopic: string | undefined,
+    state: SessionState,
+): string {
+    return (
+        batchTopic ??
+        (entries.length === 1
+            ? (state.prune.messages.blocksById.get(entries[0]?.blockId ?? -1)?.topic ??
+              "(unknown topic)")
+            : "(unknown topic)")
+    )
+}
+
+function buildDetailedCompressMessage(
+    notificationHeader: string,
+    compressionLabel: string,
+    compressedTokens: number,
+    summaryTokens: number,
+    summary: string,
+    summaryTokensStr: string,
+    topic: string,
+    newlyCompressedMessageIds: string[],
+    newlyCompressedToolIds: string[],
+    state: SessionState,
+    sessionMessageIds: string[],
+    config: PluginConfig,
+): string {
+    let message = notificationHeader
+
+    const activePrunedMessages = new Map<string, number>()
+    for (const [messageId, entry] of state.prune.messages.byMessageId) {
+        if (entry.activeBlockIds.length > 0) {
+            activePrunedMessages.set(messageId, entry.tokenCount)
+        }
+    }
+    const progressBar = formatProgressBar(
+        sessionMessageIds,
+        activePrunedMessages,
+        newlyCompressedMessageIds,
+        50,
+    )
+    message += `\n\n${progressBar}`
+    message += `\n▣ ${compressionLabel} ${formatCompressionMetrics(compressedTokens, summaryTokens)}`
+    message += `\n→ Topic: ${topic}`
+    message += `\n→ Items: ${newlyCompressedMessageIds.length} messages`
+    if (newlyCompressedToolIds.length > 0) {
+        message += ` and ${newlyCompressedToolIds.length} tools compressed`
+    } else {
+        message += ` compressed`
+    }
+    if (config.compress.showCompression) {
+        message += `\n→ Compression (~${summaryTokensStr}): ${summary}`
+    }
+
+    return message
+}
+
+async function sendCompressionToast(
+    client: any,
+    message: string,
+    summary: string,
+    summaryTokensStr: string,
+    config: PluginConfig,
+): Promise<void> {
+    let toastMessage = message
+    if (config.compress.showCompression) {
+        const truncatedSummary = truncateToastSummary(summary)
+        if (truncatedSummary !== summary) {
+            toastMessage = toastMessage.replace(
+                `\n→ Compression (~${summaryTokensStr}): ${summary}`,
+                `\n→ Compression (~${summaryTokensStr}): ${truncatedSummary}`,
+            )
+        }
+    }
+    toastMessage =
+        config.pruneNotification === "minimal" ? toastMessage : truncateToastBody(toastMessage)
+
+    await client.tui.showToast({
+        body: {
+            title: "DCP: Compress Notification",
+            message: toastMessage,
+            variant: "info",
+            duration: 5000,
+        },
+    })
+}
+
 export async function sendCompressNotification(
     client: any,
     logger: Logger,
@@ -188,7 +311,6 @@ export async function sendCompressNotification(
         return false
     }
 
-    let message: string
     const compressionLabel = getCompressionLabel(entries)
     const summary = buildCompressionSummary(entries, state)
     const summaryTokens = entries.reduce((total, entry) => total + entry.summaryTokens, 0)
@@ -206,98 +328,35 @@ export async function sendCompressNotification(
         return total + compressionBlock.compressedTokens
     }, 0)
 
-    const newlyCompressedMessageIds: string[] = []
-    const newlyCompressedToolIds: string[] = []
-    const seenMessageIds = new Set<string>()
-    const seenToolIds = new Set<string>()
+    const { messageIds: newlyCompressedMessageIds, toolIds: newlyCompressedToolIds } =
+        collectCompressedBlockIds(entries, state)
 
-    for (const entry of entries) {
-        const compressionBlock = state.prune.messages.blocksById.get(entry.blockId)
-        if (!compressionBlock) {
-            continue
-        }
-
-        for (const messageId of compressionBlock.directMessageIds) {
-            if (seenMessageIds.has(messageId)) {
-                continue
-            }
-            seenMessageIds.add(messageId)
-            newlyCompressedMessageIds.push(messageId)
-        }
-
-        for (const toolId of compressionBlock.directToolIds) {
-            if (seenToolIds.has(toolId)) {
-                continue
-            }
-            seenToolIds.add(toolId)
-            newlyCompressedToolIds.push(toolId)
-        }
-    }
-
-    const topic =
-        batchTopic ??
-        (entries.length === 1
-            ? (state.prune.messages.blocksById.get(entries[0]?.blockId ?? -1)?.topic ??
-              "(unknown topic)")
-            : "(unknown topic)")
+    const topic = resolveCompressionTopic(entries, batchTopic, state)
 
     const totalActiveSummaryTkns = getActiveSummaryTokenUsage(state)
     const totalGross = state.stats.totalPruneTokens + state.stats.pruneTokenCounter
     const notificationHeader = `▣ DCP | ${formatCompressionMetrics(totalGross, totalActiveSummaryTkns)}`
 
-    if (config.pruneNotification === "minimal") {
-        message = `${notificationHeader} — ${compressionLabel}`
-    } else {
-        message = notificationHeader
-
-        const activePrunedMessages = new Map<string, number>()
-        for (const [messageId, entry] of state.prune.messages.byMessageId) {
-            if (entry.activeBlockIds.length > 0) {
-                activePrunedMessages.set(messageId, entry.tokenCount)
-            }
-        }
-        const progressBar = formatProgressBar(
-            sessionMessageIds,
-            activePrunedMessages,
-            newlyCompressedMessageIds,
-            50,
-        )
-        message += `\n\n${progressBar}`
-        message += `\n▣ ${compressionLabel} ${formatCompressionMetrics(compressedTokens, summaryTokens)}`
-        message += `\n→ Topic: ${topic}`
-        message += `\n→ Items: ${newlyCompressedMessageIds.length} messages`
-        if (newlyCompressedToolIds.length > 0) {
-            message += ` and ${newlyCompressedToolIds.length} tools compressed`
-        } else {
-            message += ` compressed`
-        }
-        if (config.compress.showCompression) {
-            message += `\n→ Compression (~${summaryTokensStr}): ${summary}`
-        }
-    }
+    const message =
+        config.pruneNotification === "minimal"
+            ? `${notificationHeader} — ${compressionLabel}`
+            : buildDetailedCompressMessage(
+                  notificationHeader,
+                  compressionLabel,
+                  compressedTokens,
+                  summaryTokens,
+                  summary,
+                  summaryTokensStr,
+                  topic,
+                  newlyCompressedMessageIds,
+                  newlyCompressedToolIds,
+                  state,
+                  sessionMessageIds,
+                  config,
+              )
 
     if (config.pruneNotificationType === "toast") {
-        let toastMessage = message
-        if (config.compress.showCompression) {
-            const truncatedSummary = truncateToastSummary(summary)
-            if (truncatedSummary !== summary) {
-                toastMessage = toastMessage.replace(
-                    `\n→ Compression (~${summaryTokensStr}): ${summary}`,
-                    `\n→ Compression (~${summaryTokensStr}): ${truncatedSummary}`,
-                )
-            }
-        }
-        toastMessage =
-            config.pruneNotification === "minimal" ? toastMessage : truncateToastBody(toastMessage)
-
-        await client.tui.showToast({
-            body: {
-                title: "DCP: Compress Notification",
-                message: toastMessage,
-                variant: "info",
-                duration: 5000,
-            },
-        })
+        await sendCompressionToast(client, message, summary, summaryTokensStr, config)
         return true
     }
 

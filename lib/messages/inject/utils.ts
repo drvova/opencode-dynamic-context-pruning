@@ -84,6 +84,43 @@ export function getModelInfo(messages: WithParts[]): LastUserModelContext {
     }
 }
 
+function parseLimitValue(
+    limit: number | `${number}%` | undefined,
+    state: SessionState,
+): number | undefined {
+    if (limit === undefined) return undefined
+    if (typeof limit === "number") return limit
+
+    if (!limit.endsWith("%") || state.modelContextLimit === undefined) return undefined
+
+    const parsedPercent = parseFloat(limit.slice(0, -1))
+    if (isNaN(parsedPercent)) return undefined
+
+    const roundedPercent = Math.round(parsedPercent)
+    const clampedPercent = Math.max(0, Math.min(100, roundedPercent))
+    return Math.round((clampedPercent / 100) * state.modelContextLimit)
+}
+
+function resolveModelLimit(
+    config: PluginConfig,
+    providerId: string | undefined,
+    modelId: string | undefined,
+    threshold: "max" | "min",
+): number | `${number}%` | undefined {
+    const modelLimits =
+        threshold === "max" ? config.compress.modelMaxLimits : config.compress.modelMinLimits
+    if (modelLimits && providerId !== undefined && modelId !== undefined) {
+        const providerModelId = `${providerId}/${modelId}`
+        const modelLimit = modelLimits[providerModelId]
+        if (modelLimit !== undefined) return modelLimit
+    }
+    return undefined
+}
+
+function getGlobalLimit(config: PluginConfig, threshold: "max" | "min"): number | `${number}%` | undefined {
+    return threshold === "max" ? config.compress.maxContextLimit : config.compress.minContextLimit
+}
+
 function resolveContextTokenLimit(
     config: PluginConfig,
     state: SessionState,
@@ -91,42 +128,11 @@ function resolveContextTokenLimit(
     modelId: string | undefined,
     threshold: "max" | "min",
 ): number | undefined {
-    const parseLimitValue = (limit: number | `${number}%` | undefined): number | undefined => {
-        if (limit === undefined) {
-            return undefined
-        }
+    const modelLimit = resolveModelLimit(config, providerId, modelId, threshold)
+    if (modelLimit !== undefined) return parseLimitValue(modelLimit, state)
 
-        if (typeof limit === "number") {
-            return limit
-        }
-
-        if (!limit.endsWith("%") || state.modelContextLimit === undefined) {
-            return undefined
-        }
-
-        const parsedPercent = parseFloat(limit.slice(0, -1))
-        if (isNaN(parsedPercent)) {
-            return undefined
-        }
-
-        const roundedPercent = Math.round(parsedPercent)
-        const clampedPercent = Math.max(0, Math.min(100, roundedPercent))
-        return Math.round((clampedPercent / 100) * state.modelContextLimit)
-    }
-
-    const modelLimits =
-        threshold === "max" ? config.compress.modelMaxLimits : config.compress.modelMinLimits
-    if (modelLimits && providerId !== undefined && modelId !== undefined) {
-        const providerModelId = `${providerId}/${modelId}`
-        const modelLimit = modelLimits[providerModelId]
-        if (modelLimit !== undefined) {
-            return parseLimitValue(modelLimit)
-        }
-    }
-
-    const globalLimit =
-        threshold === "max" ? config.compress.maxContextLimit : config.compress.minContextLimit
-    return parseLimitValue(globalLimit)
+    const globalLimit = getGlobalLimit(config, threshold)
+    return parseLimitValue(globalLimit, state)
 }
 
 export function isContextOverLimits(
@@ -208,28 +214,17 @@ function buildMessagePriorityGuidance(
     return renderMessagePriorityGuidance(priorityLabel, refs)
 }
 
-function injectAnchoredNudge(message: WithParts, nudgeText: string): void {
-    if (!nudgeText.trim()) {
+function injectNudgeIntoUserMessage(message: WithParts, nudgeText: string): void {
+    if (appendToLastTextPart(message, nudgeText)) {
         return
     }
+    message.parts.push(createSyntheticTextPart(message, nudgeText))
+}
 
-    if (message.info.role === "user") {
-        if (appendToLastTextPart(message, nudgeText)) {
-            return
-        }
-
-        message.parts.push(createSyntheticTextPart(message, nudgeText))
-        return
-    }
-
-    if (message.info.role !== "assistant") {
-        return
-    }
-
+function injectNudgeIntoAssistantMessage(message: WithParts, nudgeText: string): void {
     if (!hasContent(message)) {
         return
     }
-
     for (const part of message.parts) {
         if (part.type === "text") {
             if (appendToTextPart(part, nudgeText)) {
@@ -237,14 +232,31 @@ function injectAnchoredNudge(message: WithParts, nudgeText: string): void {
             }
         }
     }
+    insertTextPartBeforeFirstTool(message, nudgeText)
+}
 
-    const syntheticPart = createSyntheticTextPart(message, nudgeText)
+export function insertTextPartBeforeFirstTool(message: WithParts, text: string): void {
+    const syntheticPart = createSyntheticTextPart(message, text)
     const firstToolIndex = message.parts.findIndex((p) => p.type === "tool")
     if (firstToolIndex === -1) {
         message.parts.push(syntheticPart)
     } else {
         message.parts.splice(firstToolIndex, 0, syntheticPart)
     }
+}
+
+function injectAnchoredNudge(message: WithParts, nudgeText: string): void {
+    if (!nudgeText.trim()) {
+        return
+    }
+    if (message.info.role === "user") {
+        injectNudgeIntoUserMessage(message, nudgeText)
+        return
+    }
+    if (message.info.role !== "assistant") {
+        return
+    }
+    injectNudgeIntoAssistantMessage(message, nudgeText)
 }
 
 function collectAnchoredMessages(

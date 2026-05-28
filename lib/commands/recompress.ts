@@ -1,16 +1,19 @@
-import type { Logger } from "../logger"
-import type { PruneMessagesState, SessionState, WithParts } from "../state"
-import { syncCompressionBlocks } from "../messages"
-import { parseBlockRef } from "../message-ids"
-import { getCurrentParams } from "../token-utils"
-import { saveSessionState } from "../state/persistence"
-import { sendIgnoredMessage } from "../ui/notification"
-import { formatTokenCount } from "../ui/utils"
 import {
-    getRecompressibleCompressionTargets,
-    resolveCompressionTarget,
     type CompressionTarget,
-} from "./compression-targets"
+    type Logger,
+    type PruneMessagesState,
+    type SessionState,
+    type WithParts,
+    formatCompressionCommandResult,
+    getCurrentParams,
+    resolveCompressionTarget,
+    resolveCompressionTargetArg,
+    saveSessionState,
+    sendIgnoredMessage,
+    syncCompressionBlocks,
+    validateAndSnapshot,
+    validateCommandArg,
+} from "./compression-context"
 
 export interface RecompressCommandContext {
     client: any
@@ -21,164 +24,62 @@ export interface RecompressCommandContext {
     args: string[]
 }
 
-function parseBlockIdArg(arg: string): number | null {
-    const normalized = arg.trim().toLowerCase()
-    const blockRef = parseBlockRef(normalized)
-    if (blockRef !== null) {
-        return blockRef
+function validateRecompressTarget(
+    messagesState: PruneMessagesState,
+    targetBlockId: number,
+    availableMessageIds: Set<string>,
+): string | CompressionTarget {
+    const target = resolveCompressionTarget(messagesState, targetBlockId)
+    if (!target) {
+        return `Compression ${targetBlockId} does not exist.`
     }
 
-    if (!/^[1-9]\d*$/.test(normalized)) {
-        return null
+    if (target.blocks.some((block) => !availableMessageIds.has(block.compressMessageId))) {
+        return `Compression ${target.displayId} can no longer be re-applied because its origin message is no longer in this session.`
     }
 
-    const parsed = Number.parseInt(normalized, 10)
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : null
-}
-
-function snapshotActiveMessages(messagesState: PruneMessagesState): Set<string> {
-    const activeMessages = new Set<string>()
-    for (const [messageId, entry] of messagesState.byMessageId) {
-        if (entry.activeBlockIds.length > 0) {
-            activeMessages.add(messageId)
-        }
-    }
-    return activeMessages
-}
-
-function formatRecompressMessage(
-    target: CompressionTarget,
-    recompressedMessageCount: number,
-    recompressedTokens: number,
-    deactivatedBlockIds: number[],
-): string {
-    const lines: string[] = []
-
-    lines.push(`Re-applied compression ${target.displayId}.`)
-    if (target.runId !== target.displayId || target.grouped) {
-        lines.push(`Tool call label: Compression #${target.runId}.`)
-    }
-    if (deactivatedBlockIds.length > 0) {
-        const refs = deactivatedBlockIds.map((id) => String(id)).join(", ")
-        lines.push(`Also re-compressed nested compression(s): ${refs}.`)
+    if (!target.blocks.some((block) => block.deactivatedByUser)) {
+        return target.blocks.some((block) => block.active)
+            ? `Compression ${target.displayId} is already active.`
+            : `Compression ${target.displayId} is not user-decompressed.`
     }
 
-    if (recompressedMessageCount > 0) {
-        lines.push(
-            `Re-compressed ${recompressedMessageCount} message(s) (~${formatTokenCount(recompressedTokens)}).`,
-        )
-    } else {
-        lines.push("No messages were re-compressed.")
-    }
-
-    return lines.join("\n")
-}
-
-function formatAvailableBlocksMessage(availableTargets: CompressionTarget[]): string {
-    const lines: string[] = []
-
-    lines.push("Usage: /dcp recompress <n>")
-    lines.push("")
-
-    if (availableTargets.length === 0) {
-        lines.push("No user-decompressed blocks are available to re-compress.")
-        return lines.join("\n")
-    }
-
-    lines.push("Available user-decompressed compressions:")
-    const entries = availableTargets.map((target) => {
-        const topic = target.topic.replace(/\s+/g, " ").trim() || "(no topic)"
-        const label = `${target.displayId} (${formatTokenCount(target.compressedTokens)})`
-        const details = target.grouped
-            ? `Compression #${target.runId} - ${target.blocks.length} messages`
-            : `Compression #${target.runId}`
-        return { label, topic: `${details} - ${topic}` }
-    })
-
-    const labelWidth = Math.max(...entries.map((entry) => entry.label.length)) + 4
-    for (const entry of entries) {
-        lines.push(`  ${entry.label.padEnd(labelWidth)}${entry.topic}`)
-    }
-
-    return lines.join("\n")
+    return target
 }
 
 export async function handleRecompressCommand(ctx: RecompressCommandContext): Promise<void> {
     const { client, state, logger, sessionId, messages, args } = ctx
 
     const params = getCurrentParams(state, messages, logger)
-    const targetArg = args[0]
-
-    if (args.length > 1) {
-        await sendIgnoredMessage(
-            client,
-            sessionId,
-            "Invalid arguments. Usage: /dcp recompress <n>",
-            params,
-            logger,
-        )
-        return
-    }
+    const targetArg = await validateCommandArg(client, sessionId, "recompress", args, params, logger)
+    if (targetArg === null) return
 
     syncCompressionBlocks(state, logger, messages)
     const messagesState = state.prune.messages
     const availableMessageIds = new Set(messages.map((msg) => msg.info.id))
 
-    if (!targetArg) {
-        const availableTargets = getRecompressibleCompressionTargets(
-            messagesState,
-            availableMessageIds,
-        )
-        const message = formatAvailableBlocksMessage(availableTargets)
-        await sendIgnoredMessage(client, sessionId, message, params, logger)
-        return
-    }
+    const targetBlockId = await resolveCompressionTargetArg(
+        client,
+        sessionId,
+        targetArg,
+        "recompress",
+        messagesState,
+        params,
+        logger,
+        Array.from(availableMessageIds),
+    )
+    if (targetBlockId === null) return
 
-    const targetBlockId = parseBlockIdArg(targetArg)
-    if (targetBlockId === null) {
-        await sendIgnoredMessage(
-            client,
-            sessionId,
-            `Please enter a compression number. Example: /dcp recompress 2`,
-            params,
-            logger,
-        )
-        return
-    }
-
-    const target = resolveCompressionTarget(messagesState, targetBlockId)
-    if (!target) {
-        await sendIgnoredMessage(
-            client,
-            sessionId,
-            `Compression ${targetBlockId} does not exist.`,
-            params,
-            logger,
-        )
-        return
-    }
-
-    if (target.blocks.some((block) => !availableMessageIds.has(block.compressMessageId))) {
-        await sendIgnoredMessage(
-            client,
-            sessionId,
-            `Compression ${target.displayId} can no longer be re-applied because its origin message is no longer in this session.`,
-            params,
-            logger,
-        )
-        return
-    }
-
-    if (!target.blocks.some((block) => block.deactivatedByUser)) {
-        const message = target.blocks.some((block) => block.active)
-            ? `Compression ${target.displayId} is already active.`
-            : `Compression ${target.displayId} is not user-decompressed.`
-        await sendIgnoredMessage(client, sessionId, message, params, logger)
-        return
-    }
-
-    const activeMessagesBefore = snapshotActiveMessages(messagesState)
-    const activeBlockIdsBefore = new Set(messagesState.activeBlockIds)
+    const validated = await validateAndSnapshot(
+        client,
+        sessionId,
+        params,
+        logger,
+        messagesState,
+        validateRecompressTarget(messagesState, targetBlockId, availableMessageIds),
+    )
+    if (!validated) return
+    const { target, activeMessagesBefore, activeBlockIdsBefore } = validated
 
     for (const block of target.blocks) {
         block.deactivatedByUser = false
@@ -206,12 +107,14 @@ export async function handleRecompressCommand(ctx: RecompressCommandContext): Pr
 
     await saveSessionState(state, logger)
 
-    const message = formatRecompressMessage(
-        target,
-        recompressedMessageCount,
-        recompressedTokens,
-        deactivatedBlockIds,
-    )
+    const message = formatCompressionCommandResult(target, deactivatedBlockIds, {
+        primary: `Re-applied compression ${target.displayId}.`,
+        nested: "Also re-compressed nested compression(s)",
+        changedCount: recompressedMessageCount,
+        changedTokens: recompressedTokens,
+        changed: "Re-compressed",
+        unchanged: "No messages were re-compressed.",
+    })
     await sendIgnoredMessage(client, sessionId, message, params, logger)
 
     logger.info("Recompress command completed", {

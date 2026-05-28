@@ -12,11 +12,11 @@ import type { SessionState, WithParts, ToolParameterEntry } from "../state"
 import type { PluginConfig } from "../config"
 import { sendIgnoredMessage } from "../ui/notification"
 import { formatPrunedItemsList } from "../ui/utils"
-import { getCurrentParams, getTotalToolTokens } from "../token-utils"
+import { getCurrentParams } from "../token-utils"
+import { getTotalToolTokens } from "../token-counting-tools"
 import { isIgnoredUserMessage } from "../messages/query"
-import { buildToolIdList } from "../messages/utils"
+import { buildToolIdList, collectToolCallIds } from "../messages/utils"
 import { saveSessionState } from "../state/persistence"
-import { isMessageCompacted } from "../state/utils"
 import {
     getFilePathsFromParameters,
     isFilePathProtected,
@@ -54,18 +54,7 @@ function collectToolIdsAfterIndex(
     const toolIds: string[] = []
 
     for (let i = afterIndex + 1; i < messages.length; i++) {
-        const msg = messages[i]
-        if (isMessageCompacted(state, msg)) {
-            continue
-        }
-        const parts = Array.isArray(msg.parts) ? msg.parts : []
-        if (parts.length > 0) {
-            for (const part of parts) {
-                if (part.type === "tool" && part.callID && part.tool) {
-                    toolIds.push(part.callID)
-                }
-            }
-        }
+        collectToolCallIds(state, messages[i], toolIds)
     }
 
     return toolIds
@@ -126,6 +115,34 @@ function formatSweepMessage(
     return lines.join("\n")
 }
 
+function resolveSweepTargets(
+    state: SessionState,
+    messages: WithParts[],
+    args: string[],
+    logger: Logger,
+): { toolIdsToSweep: string[]; mode: "since-user" | "last-n"; error?: string } {
+    const numArg = args[0] ? parseInt(args[0], 10) : null
+    const isLastNMode = numArg !== null && !isNaN(numArg) && numArg > 0
+
+    if (isLastNMode) {
+        const startIndex = Math.max(0, state.toolIdList.length - numArg!)
+        const toolIdsToSweep = state.toolIdList.slice(startIndex)
+        logger.info(`Sweep command: last ${numArg} mode, found ${toolIdsToSweep.length} tools`)
+        return { toolIdsToSweep, mode: "last-n" }
+    }
+
+    const lastUserMsgIndex = findLastUserMessageIndex(messages)
+    if (lastUserMsgIndex === -1) {
+        return { toolIdsToSweep: [], mode: "since-user", error: "no user message found" }
+    }
+
+    const toolIdsToSweep = collectToolIdsAfterIndex(state, messages, lastUserMsgIndex)
+    logger.info(
+        `Sweep command: found last user at index ${lastUserMsgIndex}, sweeping ${toolIdsToSweep.length} tools`,
+    )
+    return { toolIdsToSweep, mode: "since-user" }
+}
+
 export async function handleSweepCommand(ctx: SweepCommandContext): Promise<void> {
     const { client, state, config, logger, sessionId, messages, args, workingDirectory } = ctx
 
@@ -135,37 +152,15 @@ export async function handleSweepCommand(ctx: SweepCommandContext): Promise<void
     syncToolCache(state, config, logger, messages)
     buildToolIdList(state, messages)
 
-    // Parse optional numeric argument
-    const numArg = args[0] ? parseInt(args[0], 10) : null
-    const isLastNMode = numArg !== null && !isNaN(numArg) && numArg > 0
-
-    let toolIdsToSweep: string[]
-    let mode: "since-user" | "last-n"
-
-    if (isLastNMode) {
-        // Mode: Sweep last N tools
-        mode = "last-n"
-        const startIndex = Math.max(0, state.toolIdList.length - numArg!)
-        toolIdsToSweep = state.toolIdList.slice(startIndex)
-        logger.info(`Sweep command: last ${numArg} mode, found ${toolIdsToSweep.length} tools`)
-    } else {
-        // Mode: Sweep since last user message
-        mode = "since-user"
-        const lastUserMsgIndex = findLastUserMessageIndex(messages)
-
-        if (lastUserMsgIndex === -1) {
-            // No user message found - show message and return
-            const message = formatNoUserMessage()
-            await sendIgnoredMessage(client, sessionId, message, params, logger)
-            logger.info("Sweep command: no user message found")
-            return
-        } else {
-            toolIdsToSweep = collectToolIdsAfterIndex(state, messages, lastUserMsgIndex)
-            logger.info(
-                `Sweep command: found last user at index ${lastUserMsgIndex}, sweeping ${toolIdsToSweep.length} tools`,
-            )
-        }
+    const resolved = resolveSweepTargets(state, messages, args, logger)
+    if (resolved.error) {
+        const message = formatNoUserMessage()
+        await sendIgnoredMessage(client, sessionId, message, params, logger)
+        logger.info("Sweep command: no user message found")
+        return
     }
+
+    const { toolIdsToSweep, mode } = resolved
 
     // Filter out already-pruned tools, protected tools, and protected file paths
     const newToolIds = toolIdsToSweep.filter((id) => {

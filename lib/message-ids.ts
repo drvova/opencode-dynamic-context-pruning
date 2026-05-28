@@ -7,7 +7,7 @@ const MESSAGE_ID_TAG_NAME = "dcp-message-id"
 
 const MESSAGE_REF_WIDTH = 4
 const MESSAGE_REF_MIN_INDEX = 1
-export const MESSAGE_REF_MAX_INDEX = 9999
+const MESSAGE_REF_MAX_INDEX = 9999
 
 export type ParsedBoundaryId =
     | {
@@ -21,7 +21,7 @@ export type ParsedBoundaryId =
           blockId: number
       }
 
-export function formatMessageRef(index: number): string {
+function formatMessageRef(index: number): string {
     if (
         !Number.isInteger(index) ||
         index < MESSAGE_REF_MIN_INDEX ||
@@ -41,7 +41,7 @@ export function formatBlockRef(blockId: number): string {
     return `b${blockId}`
 }
 
-export function parseMessageRef(ref: string): number | null {
+function parseMessageRef(ref: string): number | null {
     const normalized = ref.trim().toLowerCase()
     const match = normalized.match(MESSAGE_REF_REGEX)
     if (!match) {
@@ -116,39 +116,33 @@ export function formatMessageIdTag(
     return `\n<${MESSAGE_ID_TAG_NAME}${serializedAttributes}>${ref}</${MESSAGE_ID_TAG_NAME}>`
 }
 
+function assignOrFixMessageRef(state: SessionState, messageId: string): boolean {
+    const existingRef = state.messageIds.byRawId.get(messageId)
+    if (existingRef) {
+        if (state.messageIds.byRef.get(existingRef) !== messageId) {
+            state.messageIds.byRef.set(existingRef, messageId)
+        }
+        return false
+    }
+    const ref = allocateNextMessageRef(state)
+    state.messageIds.byRawId.set(messageId, ref)
+    state.messageIds.byRef.set(ref, messageId)
+    return true
+}
+
 export function assignMessageRefs(state: SessionState, messages: WithParts[]): number {
     let assigned = 0
     let skippedSubAgentPrompt = false
-
     for (const message of messages) {
-        if (isIgnoredUserMessage(message)) {
-            continue
-        }
-
+        if (isIgnoredUserMessage(message)) continue
         if (state.isSubAgent && !skippedSubAgentPrompt && message.info.role === "user") {
             skippedSubAgentPrompt = true
             continue
         }
-
         const rawMessageId = message.info.id
-        if (typeof rawMessageId !== "string" || rawMessageId.length === 0) {
-            continue
-        }
-
-        const existingRef = state.messageIds.byRawId.get(rawMessageId)
-        if (existingRef) {
-            if (state.messageIds.byRef.get(existingRef) !== rawMessageId) {
-                state.messageIds.byRef.set(existingRef, rawMessageId)
-            }
-            continue
-        }
-
-        const ref = allocateNextMessageRef(state)
-        state.messageIds.byRawId.set(rawMessageId, ref)
-        state.messageIds.byRef.set(ref, rawMessageId)
-        assigned++
+        if (typeof rawMessageId !== "string" || rawMessageId.length === 0) continue
+        if (assignOrFixMessageRef(state, rawMessageId)) assigned++
     }
-
     return assigned
 }
 

@@ -1,4 +1,9 @@
-import type { SessionState, WithParts } from "../state"
+import type {
+    SessionState,
+    WithParts,
+    PruneMessagesState,
+    CompressionBlock,
+} from "../state"
 import type { Logger } from "../logger"
 
 function sortBlocksByCreation(
@@ -12,16 +17,10 @@ function sortBlocksByCreation(
     return a.blockId - b.blockId
 }
 
-export const syncCompressionBlocks = (
-    state: SessionState,
-    logger: Logger,
+function prepareSyncContext(
+    messagesState: PruneMessagesState,
     messages: WithParts[],
-): void => {
-    const messagesState = state.prune.messages
-    if (!messagesState?.blocksById?.size) {
-        return
-    }
-
+): { messageIds: Set<string>; previousActiveBlockIds: Set<number> } {
     const messageIds = new Set(messages.map((msg) => msg.info.id))
     const previousActiveBlockIds = new Set<number>(
         Array.from(messagesState.blocksById.values())
@@ -32,64 +31,72 @@ export const syncCompressionBlocks = (
     messagesState.activeBlockIds.clear()
     messagesState.activeByAnchorMessageId.clear()
 
-    const now = Date.now()
-    const missingOriginBlockIds: number[] = []
-    const orderedBlocks = Array.from(messagesState.blocksById.values()).sort(sortBlocksByCreation)
+    return { messageIds, previousActiveBlockIds }
+}
 
-    for (const block of orderedBlocks) {
-        const hasOriginMessage =
-            typeof block.compressMessageId === "string" &&
-            block.compressMessageId.length > 0 &&
-            messageIds.has(block.compressMessageId)
+function processCompressionBlock(
+    block: CompressionBlock,
+    messagesState: PruneMessagesState,
+    messageIds: Set<string>,
+    now: number,
+    missingOriginBlockIds: number[],
+): void {
+    const hasOriginMessage =
+        typeof block.compressMessageId === "string" &&
+        block.compressMessageId.length > 0 &&
+        messageIds.has(block.compressMessageId)
 
-        if (!hasOriginMessage) {
-            block.active = false
-            block.deactivatedAt = now
-            block.deactivatedByBlockId = undefined
-            missingOriginBlockIds.push(block.blockId)
-            continue
-        }
-
-        if (block.deactivatedByUser) {
-            block.active = false
-            if (block.deactivatedAt === undefined) {
-                block.deactivatedAt = now
-            }
-            block.deactivatedByBlockId = undefined
-            continue
-        }
-
-        for (const consumedBlockId of block.consumedBlockIds) {
-            if (!messagesState.activeBlockIds.has(consumedBlockId)) {
-                continue
-            }
-
-            const consumedBlock = messagesState.blocksById.get(consumedBlockId)
-            if (consumedBlock) {
-                consumedBlock.active = false
-                consumedBlock.deactivatedAt = now
-                consumedBlock.deactivatedByBlockId = block.blockId
-
-                const mappedBlockId = messagesState.activeByAnchorMessageId.get(
-                    consumedBlock.anchorMessageId,
-                )
-                if (mappedBlockId === consumedBlock.blockId) {
-                    messagesState.activeByAnchorMessageId.delete(consumedBlock.anchorMessageId)
-                }
-            }
-
-            messagesState.activeBlockIds.delete(consumedBlockId)
-        }
-
-        block.active = true
-        block.deactivatedAt = undefined
+    if (!hasOriginMessage) {
+        block.active = false
+        block.deactivatedAt = now
         block.deactivatedByBlockId = undefined
-        messagesState.activeBlockIds.add(block.blockId)
-        if (messageIds.has(block.anchorMessageId)) {
-            messagesState.activeByAnchorMessageId.set(block.anchorMessageId, block.blockId)
-        }
+        missingOriginBlockIds.push(block.blockId)
+        return
     }
 
+    if (block.deactivatedByUser) {
+        block.active = false
+        if (block.deactivatedAt === undefined) {
+            block.deactivatedAt = now
+        }
+        block.deactivatedByBlockId = undefined
+        return
+    }
+
+    for (const consumedBlockId of block.consumedBlockIds) {
+        if (!messagesState.activeBlockIds.has(consumedBlockId)) {
+            continue
+        }
+
+        const consumedBlock = messagesState.blocksById.get(consumedBlockId)
+        if (consumedBlock) {
+            consumedBlock.active = false
+            consumedBlock.deactivatedAt = now
+            consumedBlock.deactivatedByBlockId = block.blockId
+
+            const mappedBlockId = messagesState.activeByAnchorMessageId.get(
+                consumedBlock.anchorMessageId,
+            )
+            if (mappedBlockId === consumedBlock.blockId) {
+                messagesState.activeByAnchorMessageId.delete(consumedBlock.anchorMessageId)
+            }
+        }
+
+        messagesState.activeBlockIds.delete(consumedBlockId)
+    }
+
+    block.active = true
+    block.deactivatedAt = undefined
+    block.deactivatedByBlockId = undefined
+    messagesState.activeBlockIds.add(block.blockId)
+    if (messageIds.has(block.anchorMessageId)) {
+        messagesState.activeByAnchorMessageId.set(block.anchorMessageId, block.blockId)
+    }
+}
+
+function recomputeMessageBlockEntries(
+    messagesState: PruneMessagesState,
+): void {
     for (const entry of messagesState.byMessageId.values()) {
         const allBlockIds = Array.isArray(entry.allBlockIds)
             ? [...new Set(entry.allBlockIds.filter((id) => Number.isInteger(id) && id > 0))]
@@ -98,8 +105,14 @@ export const syncCompressionBlocks = (
         entry.allBlockIds = allBlockIds
         entry.activeBlockIds = allBlockIds.filter((id) => messagesState.activeBlockIds.has(id))
     }
+}
 
-    const nextActiveBlockIds = messagesState.activeBlockIds
+function logBlockStateChanges(
+    previousActiveBlockIds: Set<number>,
+    nextActiveBlockIds: Set<number>,
+    missingOriginBlockIds: number[],
+    logger: Logger,
+): void {
     let deactivatedCount = 0
     let reactivatedCount = 0
 
@@ -121,4 +134,28 @@ export const syncCompressionBlocks = (
             reactivatedCount,
         })
     }
+}
+
+export const syncCompressionBlocks = (
+    state: SessionState,
+    logger: Logger,
+    messages: WithParts[],
+): void => {
+    const messagesState = state.prune.messages
+    if (!messagesState?.blocksById?.size) {
+        return
+    }
+
+    const { messageIds, previousActiveBlockIds } = prepareSyncContext(messagesState, messages)
+
+    const now = Date.now()
+    const missingOriginBlockIds: number[] = []
+    const orderedBlocks = Array.from(messagesState.blocksById.values()).sort(sortBlocksByCreation)
+
+    for (const block of orderedBlocks) {
+        processCompressionBlock(block, messagesState, messageIds, now, missingOriginBlockIds)
+    }
+
+    recomputeMessageBlockEntries(messagesState)
+    logBlockStateChanges(previousActiveBlockIds, messagesState.activeBlockIds, missingOriginBlockIds, logger)
 }

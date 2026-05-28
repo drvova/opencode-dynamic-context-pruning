@@ -45,24 +45,32 @@ const wildcardMatch = (value: string, pattern: string): boolean => {
     return new RegExp(`^${escaped}$`, flags).test(normalizedValue)
 }
 
+function isPermissionAction(value: PermissionValue): value is PermissionAction {
+    return value === "ask" || value === "allow" || value === "deny"
+}
+
+function extractPermissionRules(
+    permission: string,
+    value: PermissionValue,
+): PermissionRule[] {
+    if (isPermissionAction(value)) {
+        return [{ permission, pattern: "*", action: value }]
+    }
+    const rules: PermissionRule[] = []
+    for (const [pattern, action] of Object.entries(value)) {
+        if (isPermissionAction(action)) {
+            rules.push({ permission, pattern, action })
+        }
+    }
+    return rules
+}
+
 const getPermissionRules = (permissionConfigs: PermissionConfig[]): PermissionRule[] => {
     const rules: PermissionRule[] = []
-    for (const permissionConfig of permissionConfigs) {
-        if (!permissionConfig) {
-            continue
-        }
-
-        for (const [permission, value] of Object.entries(permissionConfig)) {
-            if (value === "ask" || value === "allow" || value === "deny") {
-                rules.push({ permission, pattern: "*", action: value })
-                continue
-            }
-
-            for (const [pattern, action] of Object.entries(value)) {
-                if (action === "ask" || action === "allow" || action === "deny") {
-                    rules.push({ permission, pattern, action })
-                }
-            }
+    for (const config of permissionConfigs) {
+        if (!config) continue
+        for (const [permission, value] of Object.entries(config)) {
+            rules.push(...extractPermissionRules(permission, value))
         }
     }
     return rules

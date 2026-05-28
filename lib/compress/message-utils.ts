@@ -1,3 +1,9 @@
+export function extractCompressCallId(toolCtx: unknown): string | undefined {
+    return typeof (toolCtx as { callID?: unknown }).callID === "string"
+        ? (toolCtx as { callID: string }).callID
+        : undefined
+}
+
 import type { PluginConfig } from "../config"
 import type { SessionState } from "../state"
 import { parseBoundaryId } from "../message-ids"
@@ -27,7 +33,10 @@ class SoftIssue extends Error {
     }
 }
 
-export function validateArgs(args: CompressMessageToolArgs): void {
+export function validateCompressArgs(
+    args: { topic: unknown; content: unknown },
+    entryFields: string[],
+): void {
     if (typeof args.topic !== "string" || args.topic.trim().length === 0) {
         throw new Error("topic is required and must be a non-empty string")
     }
@@ -37,21 +46,19 @@ export function validateArgs(args: CompressMessageToolArgs): void {
     }
 
     for (let index = 0; index < args.content.length; index++) {
-        const entry = args.content[index]
+        const entry = args.content[index] as Record<string, unknown>
         const prefix = `content[${index}]`
 
-        if (typeof entry?.messageId !== "string" || entry.messageId.trim().length === 0) {
-            throw new Error(`${prefix}.messageId is required and must be a non-empty string`)
-        }
-
-        if (typeof entry?.topic !== "string" || entry.topic.trim().length === 0) {
-            throw new Error(`${prefix}.topic is required and must be a non-empty string`)
-        }
-
-        if (typeof entry?.summary !== "string" || entry.summary.trim().length === 0) {
-            throw new Error(`${prefix}.summary is required and must be a non-empty string`)
+        for (const field of entryFields) {
+            if (typeof entry?.[field] !== "string" || (entry[field] as string).trim().length === 0) {
+                throw new Error(`${prefix}.${field} is required and must be a non-empty string`)
+            }
         }
     }
+}
+
+export function validateArgs(args: CompressMessageToolArgs): void {
+    validateCompressArgs(args, ["messageId", "topic", "summary"])
 }
 
 export function formatResult(
@@ -190,24 +197,23 @@ export function resolveMessages(
     }
 }
 
-function resolveMessage(
-    entry: CompressMessageEntry,
+function validateAndFetchMessage(
+    entryId: string,
     searchContext: SearchContext,
     state: SessionState,
-    config: PluginConfig,
-): ResolvedMessageCompression {
-    if (entry.messageId.toUpperCase() === "BLOCKED") {
+) {
+    if (entryId.toUpperCase() === "BLOCKED") {
         throw new SoftIssue("blocked", "BLOCKED", "protected message")
     }
 
-    const parsed = parseBoundaryId(entry.messageId)
+    const parsed = parseBoundaryId(entryId)
 
     if (!parsed) {
-        throw new SoftIssue("invalid-format", entry.messageId, "invalid format")
+        throw new SoftIssue("invalid-format", entryId, "invalid format")
     }
 
     if (parsed.kind === "compressed-block") {
-        throw new SoftIssue("block-id", entry.messageId, "block ID used")
+        throw new SoftIssue("block-id", entryId, "block ID used")
     }
 
     const messageId = state.messageIds.byRef.get(parsed.ref)
@@ -221,29 +227,38 @@ function resolveMessage(
         throw new SoftIssue("not-in-context", parsed.ref, "not in context")
     }
 
-    const { startReference, endReference } = resolveBoundaryIds(
-        searchContext,
-        state,
-        parsed.ref,
-        parsed.ref,
-    )
-    const selection = resolveSelection(searchContext, startReference, endReference)
+    return { parsed, messageId, rawMessage }
+}
 
+function checkCompressionEligibility(
+    config: PluginConfig,
+    rawMessage: any,
+    state: SessionState,
+    messageId: string,
+    ref: string,
+) {
     if (isProtectedUserMessage(config, rawMessage)) {
-        throw new SoftIssue("protected", parsed.ref, "protected message")
+        throw new SoftIssue("protected", ref, "protected message")
     }
 
     const pruneEntry = state.prune.messages.byMessageId.get(messageId)
     if (pruneEntry && pruneEntry.activeBlockIds.length > 0) {
-        throw new SoftIssue("already-compressed", parsed.ref, "already compressed")
+        throw new SoftIssue("already-compressed", ref, "already compressed")
     }
+}
 
+function resolveMessage(
+    entry: CompressMessageEntry,
+    searchContext: SearchContext,
+    state: SessionState,
+    config: PluginConfig,
+): ResolvedMessageCompression {
+    const { parsed, messageId, rawMessage } = validateAndFetchMessage(entry.messageId, searchContext, state)
+    const { startReference, endReference } = resolveBoundaryIds(searchContext, state, parsed.ref, parsed.ref)
+    const selection = resolveSelection(searchContext, startReference, endReference)
+    checkCompressionEligibility(config, rawMessage, state, messageId, parsed.ref)
     return {
-        entry: {
-            messageId: parsed.ref,
-            topic: entry.topic,
-            summary: entry.summary,
-        },
+        entry: { messageId: parsed.ref, topic: entry.topic, summary: entry.summary },
         selection,
         anchorMessageId: resolveAnchorMessageId(startReference),
     }

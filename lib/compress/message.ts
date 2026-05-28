@@ -1,8 +1,9 @@
 import { tool } from "@opencode-ai/plugin"
+import type { ToolContext as ToolExecContext } from "@opencode-ai/plugin"
 import type { ToolContext } from "./types"
-import { countTokens } from "../token-utils"
+import { countTokens } from "../token-counting"
 import { MESSAGE_FORMAT_EXTENSION } from "../prompts/extensions/tool"
-import { formatIssues, formatResult, resolveMessages, validateArgs } from "./message-utils"
+import { extractCompressCallId, formatIssues, formatResult, resolveMessages, validateArgs } from "./message-utils"
 import { finalizeSession, prepareSession, type NotificationEntry } from "./pipeline"
 import { appendProtectedTools } from "./protected-content"
 import {
@@ -11,7 +12,11 @@ import {
     applyCompressionState,
     wrapCompressedSummary,
 } from "./state"
-import type { CompressMessageToolArgs } from "./types"
+import type {
+    CompressMessageToolArgs,
+    ResolvedMessageCompression,
+    SearchContext,
+} from "./types"
 
 function buildSchema() {
     return {
@@ -38,6 +43,113 @@ function buildSchema() {
     }
 }
 
+interface PreparedMessagePlan {
+    plan: ResolvedMessageCompression
+    summaryWithTools: string
+}
+
+async function prepareMessageCompression(
+    ctx: ToolContext,
+    toolCtx: ToolExecContext,
+    input: CompressMessageToolArgs,
+) {
+    validateArgs(input)
+    const callId = extractCompressCallId(toolCtx)
+    const { rawMessages, searchContext } = await prepareSession(
+        ctx,
+        toolCtx,
+        `Compress Message: ${input.topic}`,
+    )
+    const { plans, skippedIssues, skippedCount } = resolveMessages(
+        input,
+        searchContext,
+        ctx.state,
+        ctx.config,
+    )
+    if (plans.length === 0 && skippedCount > 0) {
+        throw new Error(formatIssues(skippedIssues, skippedCount))
+    }
+    return { rawMessages, searchContext, plans, skippedIssues, skippedCount, callId }
+}
+
+async function buildMessageSummaries(
+    plans: ResolvedMessageCompression[],
+    ctx: ToolContext,
+    searchContext: SearchContext,
+): Promise<PreparedMessagePlan[]> {
+    const preparedPlans: PreparedMessagePlan[] = []
+
+    for (const plan of plans) {
+        const summaryWithTools = await appendProtectedTools(
+            ctx.client,
+            ctx.state,
+            ctx.config.experimental.allowSubAgents,
+            plan.entry.summary,
+            plan.selection,
+            searchContext,
+            ctx.config.compress.protectedTools,
+            ctx.config.protectedFilePatterns,
+        )
+
+        preparedPlans.push({ plan, summaryWithTools })
+    }
+
+    return preparedPlans
+}
+
+async function executeCompressMessage(
+    ctx: ToolContext,
+    args: unknown,
+    toolCtx: ToolExecContext,
+): Promise<string> {
+    const input = args as CompressMessageToolArgs
+
+    const { rawMessages, searchContext, plans, skippedIssues, skippedCount, callId } =
+        await prepareMessageCompression(ctx, toolCtx, input)
+
+    const preparedPlans = await buildMessageSummaries(plans, ctx, searchContext)
+
+    const notifications: NotificationEntry[] = []
+    const runId = allocateRunId(ctx.state)
+
+    for (const { plan, summaryWithTools } of preparedPlans) {
+        const blockId = allocateBlockId(ctx.state)
+        const storedSummary = wrapCompressedSummary(blockId, summaryWithTools)
+        const summaryTokens = countTokens(storedSummary)
+
+        applyCompressionState(
+            ctx.state,
+            {
+                topic: plan.entry.topic,
+                batchTopic: input.topic,
+                startId: plan.entry.messageId,
+                endId: plan.entry.messageId,
+                mode: "message",
+                runId,
+                compressMessageId: toolCtx.messageID,
+                compressCallId: callId,
+                summaryTokens,
+            },
+            plan.selection,
+            plan.anchorMessageId,
+            blockId,
+            storedSummary,
+            [],
+        )
+
+        notifications.push({
+            blockId,
+            runId,
+            summary: summaryWithTools,
+            summaryTokens,
+        })
+    }
+
+    await finalizeSession(ctx, toolCtx, rawMessages, notifications, input.topic)
+
+    return formatResult(plans.length, skippedIssues, skippedCount)
+}
+
 export function createCompressMessageTool(ctx: ToolContext): ReturnType<typeof tool> {
     ctx.prompts.reload()
     const runtimePrompts = ctx.prompts.getRuntimePrompts()
@@ -45,93 +157,6 @@ export function createCompressMessageTool(ctx: ToolContext): ReturnType<typeof t
     return tool({
         description: runtimePrompts.compressMessage + MESSAGE_FORMAT_EXTENSION,
         args: buildSchema(),
-        async execute(args, toolCtx) {
-            const input = args as CompressMessageToolArgs
-            validateArgs(input)
-            const callId =
-                typeof (toolCtx as unknown as { callID?: unknown }).callID === "string"
-                    ? (toolCtx as unknown as { callID: string }).callID
-                    : undefined
-
-            const { rawMessages, searchContext } = await prepareSession(
-                ctx,
-                toolCtx,
-                `Compress Message: ${input.topic}`,
-            )
-            const { plans, skippedIssues, skippedCount } = resolveMessages(
-                input,
-                searchContext,
-                ctx.state,
-                ctx.config,
-            )
-
-            if (plans.length === 0 && skippedCount > 0) {
-                throw new Error(formatIssues(skippedIssues, skippedCount))
-            }
-
-            const notifications: NotificationEntry[] = []
-
-            const preparedPlans: Array<{
-                plan: (typeof plans)[number]
-                summaryWithTools: string
-            }> = []
-
-            for (const plan of plans) {
-                const summaryWithTools = await appendProtectedTools(
-                    ctx.client,
-                    ctx.state,
-                    ctx.config.experimental.allowSubAgents,
-                    plan.entry.summary,
-                    plan.selection,
-                    searchContext,
-                    ctx.config.compress.protectedTools,
-                    ctx.config.protectedFilePatterns,
-                )
-
-                preparedPlans.push({
-                    plan,
-                    summaryWithTools,
-                })
-            }
-
-            const runId = allocateRunId(ctx.state)
-
-            for (const { plan, summaryWithTools } of preparedPlans) {
-                const blockId = allocateBlockId(ctx.state)
-                const storedSummary = wrapCompressedSummary(blockId, summaryWithTools)
-                const summaryTokens = countTokens(storedSummary)
-
-                applyCompressionState(
-                    ctx.state,
-                    {
-                        topic: plan.entry.topic,
-                        batchTopic: input.topic,
-                        startId: plan.entry.messageId,
-                        endId: plan.entry.messageId,
-                        mode: "message",
-                        runId,
-                        compressMessageId: toolCtx.messageID,
-                        compressCallId: callId,
-                        summaryTokens,
-                    },
-                    plan.selection,
-                    plan.anchorMessageId,
-                    blockId,
-                    storedSummary,
-                    [],
-                )
-
-                notifications.push({
-                    blockId,
-                    runId,
-                    summary: summaryWithTools,
-                    summaryTokens,
-                })
-            }
-
-            await finalizeSession(ctx, toolCtx, rawMessages, notifications, input.topic)
-
-            return formatResult(plans.length, skippedIssues, skippedCount)
-        },
+        execute: (args, toolCtx) => executeCompressMessage(ctx, args, toolCtx),
     })
 }
