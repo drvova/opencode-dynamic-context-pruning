@@ -1,17 +1,17 @@
 {
   "schema_version": 6,
   "version": "2.81.0",
-  "elapsed_ms": 54,
+  "elapsed_ms": 80,
   "check": {
     "schema_version": 6,
     "version": "2.81.0",
-    "elapsed_ms": 48,
+    "elapsed_ms": 65,
     "total_issues": 0,
     "entry_points": {
-      "total": 19,
+      "total": 22,
       "sources": {
         "package.json": 3,
-        "plugin": 16
+        "plugin": 19
       }
     },
     "summary": {
@@ -68,9 +68,9 @@
     "stats": {
       "total_files": 61,
       "files_with_clones": 0,
-      "total_lines": 10780,
+      "total_lines": 10760,
       "duplicated_lines": 0,
-      "total_tokens": 55322,
+      "total_tokens": 55483,
       "duplicated_tokens": 0,
       "clone_groups": 0,
       "clone_instances": 0,
@@ -80,14 +80,14 @@
   "health": {
     "findings": [],
     "summary": {
-      "files_analyzed": 90,
-      "functions_analyzed": 891,
+      "files_analyzed": 93,
+      "functions_analyzed": 955,
       "functions_above_threshold": 0,
       "max_cyclomatic_threshold": 20,
       "max_cognitive_threshold": 25,
       "max_crap_threshold": 300.0,
-      "files_scored": 74,
-      "average_maintainability": 89.0,
+      "files_scored": 77,
+      "average_maintainability": 89.1,
       "coverage_model": "static_estimated",
       "severity_critical_count": 0,
       "severity_high_count": 0,
@@ -96,85 +96,57 @@
     "vital_signs": {
       "dead_file_pct": 0.0,
       "dead_export_pct": 0.0,
-      "avg_cyclomatic": 2.8,
+      "avg_cyclomatic": 2.7,
       "critical_complexity_pct": 0.0,
       "p90_cyclomatic": 6,
       "hotspot_count": 0,
       "hotspot_top_pct_count": 1,
-      "maintainability_avg": 89.0,
+      "maintainability_avg": 89.1,
       "maintainability_low_pct": 0.0,
       "unused_dep_count": 0,
       "unused_deps_per_k_files": 0.0,
       "circular_dep_count": 0,
       "circular_deps_per_k_files": 0.0,
       "counts": {
-        "total_files": 90,
-        "total_exports": 280,
+        "total_files": 93,
+        "total_exports": 279,
         "dead_files": 0,
         "dead_exports": 0,
-        "total_lines": 15840,
-        "files_scored": 74,
+        "total_lines": 16481,
+        "files_scored": 77,
         "total_deps": 0
       },
       "unit_size_profile": {
-        "low_risk": 65.4,
-        "medium_risk": 20.1,
-        "high_risk": 11.8,
-        "very_high_risk": 2.7
+        "low_risk": 66.8,
+        "medium_risk": 19.8,
+        "high_risk": 10.9,
+        "very_high_risk": 2.5
       },
-      "functions_over_60_loc_per_k": 26.9,
+      "functions_over_60_loc_per_k": 25.1,
       "unit_interfacing_profile": {
-        "low_risk": 80.7,
-        "medium_risk": 14.0,
-        "high_risk": 4.3,
+        "low_risk": 81.9,
+        "medium_risk": 13.1,
+        "high_risk": 4.0,
         "very_high_risk": 1.0
       },
       "p95_fan_in": 12,
-      "coupling_high_pct": 4.1,
-      "total_loc": 15840
+      "coupling_high_pct": 3.9,
+      "total_loc": 16481
     },
     "file_scores": [
       {
-        "path": "lib/token-utils.ts",
-        "fan_in": 11,
-        "fan_out": 3,
-        "dead_code_ratio": 0.0,
-        "complexity_density": 0.5,
-        "maintainability_index": 81.3,
-        "total_cyclomatic": 22,
-        "total_cognitive": 16,
-        "function_count": 3,
-        "lines": 44,
-        "crap_max": 132.0,
-        "crap_above_threshold": 2
-      },
-      {
         "path": "lib/compress/protected-content.ts",
-        "fan_in": 2,
+        "fan_in": 3,
         "fan_out": 6,
         "dead_code_ratio": 0.0,
         "complexity_density": 0.3,
         "maintainability_index": 83.2,
-        "total_cyclomatic": 57,
-        "total_cognitive": 52,
-        "function_count": 11,
-        "lines": 187,
-        "crap_max": 132.0,
-        "crap_above_threshold": 6
-      },
-      {
-        "path": "lib/hooks.ts",
-        "fan_in": 3,
-        "fan_out": 14,
-        "dead_code_ratio": 0.0,
-        "complexity_density": 0.2,
-        "maintainability_index": 83.2,
-        "total_cyclomatic": 80,
-        "total_cognitive": 53,
-        "function_count": 23,
-        "lines": 410,
+        "total_cyclomatic": 59,
+        "total_cognitive": 40,
+        "function_count": 18,
+        "lines": 197,
         "crap_max": 90.0,
-        "crap_above_threshold": 8
+        "crap_above_threshold": 6
       },
       {
         "path": "lib/strategies/tool-call-pruning.ts",
@@ -228,7 +200,7 @@
         "total_cyclomatic": 60,
         "total_cognitive": 46,
         "function_count": 22,
-        "lines": 223,
+        "lines": 225,
         "crap_max": 42.0,
         "crap_above_threshold": 5
       },
@@ -247,16 +219,44 @@
         "crap_above_threshold": 4
       },
       {
+        "path": "lib/subagents/subagent-results.ts",
+        "fan_in": 3,
+        "fan_out": 2,
+        "dead_code_ratio": 0.0,
+        "complexity_density": 0.38,
+        "maintainability_index": 84.2,
+        "total_cyclomatic": 23,
+        "total_cognitive": 12,
+        "function_count": 8,
+        "lines": 61,
+        "crap_max": 42.0,
+        "crap_above_threshold": 1
+      },
+      {
+        "path": "lib/hooks.ts",
+        "fan_in": 3,
+        "fan_out": 14,
+        "dead_code_ratio": 0.0,
+        "complexity_density": 0.16,
+        "maintainability_index": 84.4,
+        "total_cyclomatic": 66,
+        "total_cognitive": 44,
+        "function_count": 22,
+        "lines": 405,
+        "crap_max": 72.0,
+        "crap_above_threshold": 5
+      },
+      {
         "path": "lib/ui/param-formatters.ts",
         "fan_in": 2,
         "fan_out": 0,
         "dead_code_ratio": 0.0,
-        "complexity_density": 0.52,
-        "maintainability_index": 84.4,
-        "total_cyclomatic": 58,
+        "complexity_density": 0.51,
+        "maintainability_index": 84.7,
+        "total_cyclomatic": 57,
         "total_cognitive": 41,
         "function_count": 16,
-        "lines": 112,
+        "lines": 111,
         "crap_max": 56.0,
         "crap_above_threshold": 5
       },
@@ -312,7 +312,7 @@
         "total_cyclomatic": 50,
         "total_cognitive": 53,
         "function_count": 13,
-        "lines": 177,
+        "lines": 178,
         "crap_max": 72.0,
         "crap_above_threshold": 4
       },
@@ -424,23 +424,23 @@
         "total_cyclomatic": 26,
         "total_cognitive": 15,
         "function_count": 8,
-        "lines": 168,
+        "lines": 171,
         "crap_max": 42.0,
         "crap_above_threshold": 2
       },
       {
-        "path": "lib/subagents/subagent-results.ts",
-        "fan_in": 2,
-        "fan_out": 2,
+        "path": "tests/compression-groups.test.ts",
+        "fan_in": 0,
+        "fan_out": 8,
         "dead_code_ratio": 0.0,
-        "complexity_density": 0.29,
-        "maintainability_index": 86.9,
-        "total_cyclomatic": 20,
-        "total_cognitive": 14,
-        "function_count": 7,
-        "lines": 69,
-        "crap_max": 42.0,
-        "crap_above_threshold": 1
+        "complexity_density": 0.14,
+        "maintainability_index": 87.0,
+        "total_cyclomatic": 62,
+        "total_cognitive": 9,
+        "function_count": 39,
+        "lines": 454,
+        "crap_max": 110.0,
+        "crap_above_threshold": 2
       },
       {
         "path": "lib/state/tool-cache.ts",
@@ -480,7 +480,7 @@
         "total_cyclomatic": 36,
         "total_cognitive": 27,
         "function_count": 12,
-        "lines": 270,
+        "lines": 271,
         "crap_max": 30.0,
         "crap_above_threshold": 4
       },
@@ -527,22 +527,8 @@
         "crap_above_threshold": 3
       },
       {
-        "path": "tests/compression-groups.test.ts",
-        "fan_in": 0,
-        "fan_out": 7,
-        "dead_code_ratio": 0.0,
-        "complexity_density": 0.14,
-        "maintainability_index": 87.5,
-        "total_cyclomatic": 62,
-        "total_cognitive": 9,
-        "function_count": 39,
-        "lines": 453,
-        "crap_max": 110.0,
-        "crap_above_threshold": 2
-      },
-      {
         "path": "lib/prompts/store.ts",
-        "fan_in": 7,
+        "fan_in": 8,
         "fan_out": 8,
         "dead_code_ratio": 0.0,
         "complexity_density": 0.12,
@@ -555,18 +541,46 @@
         "crap_above_threshold": 4
       },
       {
+        "path": "lib/token-utils.ts",
+        "fan_in": 4,
+        "fan_out": 1,
+        "dead_code_ratio": 0.0,
+        "complexity_density": 0.67,
+        "maintainability_index": 87.6,
+        "total_cyclomatic": 16,
+        "total_cognitive": 9,
+        "function_count": 4,
+        "lines": 24,
+        "crap_max": 30.0,
+        "crap_above_threshold": 1
+      },
+      {
         "path": "lib/ui/notification.ts",
         "fan_in": 8,
         "fan_out": 5,
         "dead_code_ratio": 0.0,
-        "complexity_density": 0.16,
-        "maintainability_index": 88.0,
+        "complexity_density": 0.17,
+        "maintainability_index": 87.7,
         "total_cyclomatic": 68,
         "total_cognitive": 56,
         "function_count": 18,
-        "lines": 415,
+        "lines": 407,
         "crap_max": 56.0,
         "crap_above_threshold": 6
+      },
+      {
+        "path": "lib/compress/pipeline.ts",
+        "fan_in": 2,
+        "fan_out": 12,
+        "dead_code_ratio": 0.0,
+        "complexity_density": 0.06,
+        "maintainability_index": 87.9,
+        "total_cyclomatic": 7,
+        "total_cognitive": 3,
+        "function_count": 4,
+        "lines": 111,
+        "crap_max": 12.0,
+        "crap_above_threshold": 0
       },
       {
         "path": "lib/message-ids.ts",
@@ -592,23 +606,9 @@
         "total_cyclomatic": 44,
         "total_cognitive": 50,
         "function_count": 11,
-        "lines": 145,
+        "lines": 146,
         "crap_max": 182.0,
         "crap_above_threshold": 4
-      },
-      {
-        "path": "lib/compress/pipeline.ts",
-        "fan_in": 2,
-        "fan_out": 11,
-        "dead_code_ratio": 0.0,
-        "complexity_density": 0.06,
-        "maintainability_index": 88.3,
-        "total_cyclomatic": 7,
-        "total_cognitive": 3,
-        "function_count": 4,
-        "lines": 110,
-        "crap_max": 12.0,
-        "crap_above_threshold": 0
       },
       {
         "path": "lib/commands/stats.ts",
@@ -645,8 +645,8 @@
         "dead_code_ratio": 0.0,
         "complexity_density": 0.12,
         "maintainability_index": 88.6,
-        "total_cyclomatic": 23,
-        "total_cognitive": 16,
+        "total_cyclomatic": 24,
+        "total_cognitive": 19,
         "function_count": 6,
         "lines": 194,
         "crap_max": 90.0,
@@ -667,6 +667,20 @@
         "crap_above_threshold": 7
       },
       {
+        "path": "tests/compress-message.test.ts",
+        "fan_in": 0,
+        "fan_out": 5,
+        "dead_code_ratio": 0.0,
+        "complexity_density": 0.13,
+        "maintainability_index": 88.9,
+        "total_cyclomatic": 101,
+        "total_cognitive": 8,
+        "function_count": 82,
+        "lines": 779,
+        "crap_max": 156.0,
+        "crap_above_threshold": 2
+      },
+      {
         "path": "tests/message-priority.test.ts",
         "fan_in": 0,
         "fan_out": 10,
@@ -676,7 +690,7 @@
         "total_cyclomatic": 49,
         "total_cognitive": 3,
         "function_count": 29,
-        "lines": 921,
+        "lines": 922,
         "crap_max": 56.0,
         "crap_above_threshold": 1
       },
@@ -744,7 +758,7 @@
         "complexity_density": 0.17,
         "maintainability_index": 89.4,
         "total_cyclomatic": 46,
-        "total_cognitive": 24,
+        "total_cognitive": 30,
         "function_count": 11,
         "lines": 263,
         "crap_max": 182.0,
@@ -765,18 +779,18 @@
         "crap_above_threshold": 0
       },
       {
-        "path": "tests/compress-message.test.ts",
+        "path": "tests/compress-range.test.ts",
         "fan_in": 0,
-        "fan_out": 4,
+        "fan_out": 5,
         "dead_code_ratio": 0.0,
-        "complexity_density": 0.13,
-        "maintainability_index": 89.7,
-        "total_cyclomatic": 101,
-        "total_cognitive": 8,
-        "function_count": 82,
-        "lines": 778,
-        "crap_max": 156.0,
-        "crap_above_threshold": 2
+        "complexity_density": 0.1,
+        "maintainability_index": 89.8,
+        "total_cyclomatic": 30,
+        "total_cognitive": 5,
+        "function_count": 25,
+        "lines": 306,
+        "crap_max": 42.0,
+        "crap_above_threshold": 1
       },
       {
         "path": "lib/compress/message.ts",
@@ -835,20 +849,6 @@
         "crap_above_threshold": 0
       },
       {
-        "path": "tests/compress-range.test.ts",
-        "fan_in": 0,
-        "fan_out": 4,
-        "dead_code_ratio": 0.0,
-        "complexity_density": 0.1,
-        "maintainability_index": 90.6,
-        "total_cyclomatic": 30,
-        "total_cognitive": 5,
-        "function_count": 25,
-        "lines": 305,
-        "crap_max": 42.0,
-        "crap_above_threshold": 1
-      },
-      {
         "path": "tests/message-utils.test.ts",
         "fan_in": 0,
         "fan_out": 3,
@@ -858,7 +858,7 @@
         "total_cyclomatic": 32,
         "total_cognitive": 2,
         "function_count": 30,
-        "lines": 247,
+        "lines": 251,
         "crap_max": 6.0,
         "crap_above_threshold": 0
       },
@@ -875,6 +875,48 @@
         "lines": 176,
         "crap_max": 72.0,
         "crap_above_threshold": 2
+      },
+      {
+        "path": "tests/subagent-results.test.ts",
+        "fan_in": 0,
+        "fan_out": 2,
+        "dead_code_ratio": 0.0,
+        "complexity_density": 0.14,
+        "maintainability_index": 91.4,
+        "total_cyclomatic": 30,
+        "total_cognitive": 5,
+        "function_count": 25,
+        "lines": 216,
+        "crap_max": 42.0,
+        "crap_above_threshold": 1
+      },
+      {
+        "path": "tests/protected-content.test.ts",
+        "fan_in": 0,
+        "fan_out": 3,
+        "dead_code_ratio": 0.0,
+        "complexity_density": 0.1,
+        "maintainability_index": 91.5,
+        "total_cyclomatic": 26,
+        "total_cognitive": 6,
+        "function_count": 20,
+        "lines": 263,
+        "crap_max": 56.0,
+        "crap_above_threshold": 1
+      },
+      {
+        "path": "tests/hooks-permission.test.ts",
+        "fan_in": 0,
+        "fan_out": 5,
+        "dead_code_ratio": 0.0,
+        "complexity_density": 0.04,
+        "maintainability_index": 91.6,
+        "total_cyclomatic": 26,
+        "total_cognitive": 0,
+        "function_count": 19,
+        "lines": 710,
+        "crap_max": 12.0,
+        "crap_above_threshold": 0
       },
       {
         "path": "tests/token-usage.test.ts",
@@ -961,20 +1003,6 @@
         "crap_above_threshold": 0
       },
       {
-        "path": "tests/hooks-permission.test.ts",
-        "fan_in": 0,
-        "fan_out": 4,
-        "dead_code_ratio": 0.0,
-        "complexity_density": 0.04,
-        "maintainability_index": 92.4,
-        "total_cyclomatic": 26,
-        "total_cognitive": 0,
-        "function_count": 19,
-        "lines": 705,
-        "crap_max": 12.0,
-        "crap_above_threshold": 0
-      },
-      {
         "path": "lib/host-permissions.ts",
         "fan_in": 4,
         "fan_out": 0,
@@ -1018,7 +1046,7 @@
       },
       {
         "path": "lib/token-params.ts",
-        "fan_in": 1,
+        "fan_in": 8,
         "fan_out": 3,
         "dead_code_ratio": 0.0,
         "complexity_density": 0.06,
@@ -1045,16 +1073,30 @@
         "crap_above_threshold": 0
       },
       {
+        "path": "tests/token-utils.test.ts",
+        "fan_in": 0,
+        "fan_out": 2,
+        "dead_code_ratio": 0.0,
+        "complexity_density": 0.08,
+        "maintainability_index": 93.2,
+        "total_cyclomatic": 14,
+        "total_cognitive": 2,
+        "function_count": 11,
+        "lines": 167,
+        "crap_max": 20.0,
+        "crap_above_threshold": 0
+      },
+      {
         "path": "lib/auth.ts",
         "fan_in": 1,
         "fan_out": 0,
         "dead_code_ratio": 0.0,
-        "complexity_density": 0.29,
+        "complexity_density": 0.27,
         "maintainability_index": 93.4,
         "total_cyclomatic": 11,
         "total_cognitive": 6,
         "function_count": 4,
-        "lines": 38,
+        "lines": 41,
         "crap_max": 30.0,
         "crap_above_threshold": 1
       },
@@ -1068,7 +1110,7 @@
         "total_cyclomatic": 3,
         "total_cognitive": 0,
         "function_count": 3,
-        "lines": 90,
+        "lines": 91,
         "crap_max": 2.0,
         "crap_above_threshold": 0
       },
@@ -1096,7 +1138,7 @@
         "total_cyclomatic": 8,
         "total_cognitive": 3,
         "function_count": 6,
-        "lines": 175,
+        "lines": 176,
         "crap_max": 12.0,
         "crap_above_threshold": 0
       },
@@ -1174,9 +1216,9 @@
     "hotspots": [
       {
         "path": "lib/messages/utils.ts",
-        "score": 42.4,
+        "score": 30.5,
         "commits": 88,
-        "weighted_commits": 38.74,
+        "weighted_commits": 38.57,
         "lines_added": 1211,
         "lines_deleted": 976,
         "complexity_density": 0.28,
@@ -1198,35 +1240,10 @@
         ]
       },
       {
-        "path": "lib/hooks.ts",
-        "score": 40.0,
-        "commits": 122,
-        "weighted_commits": 51.11,
-        "lines_added": 1573,
-        "lines_deleted": 1155,
-        "complexity_density": 0.2,
-        "fan_in": 3,
-        "trend": "stable",
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `lib/hooks.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `lib/hooks.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
         "path": "lib/config.ts",
-        "score": 36.4,
+        "score": 26.1,
         "commits": 127,
-        "weighted_commits": 46.5,
+        "weighted_commits": 46.3,
         "lines_added": 3231,
         "lines_deleted": 2436,
         "complexity_density": 0.2,
@@ -1248,37 +1265,37 @@
         ]
       },
       {
-        "path": "lib/messages/prune.ts",
-        "score": 25.1,
-        "commits": 64,
-        "weighted_commits": 23.79,
-        "lines_added": 917,
-        "lines_deleted": 679,
-        "complexity_density": 0.27,
-        "fan_in": 2,
+        "path": "lib/hooks.ts",
+        "score": 23.9,
+        "commits": 124,
+        "weighted_commits": 52.89,
+        "lines_added": 1638,
+        "lines_deleted": 1225,
+        "complexity_density": 0.16,
+        "fan_in": 3,
         "trend": "cooling",
         "actions": [
           {
             "type": "refactor-file",
             "auto_fixable": false,
-            "description": "Refactor `lib/messages/prune.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "description": "Refactor `lib/hooks.ts`, high complexity combined with frequent changes makes this a maintenance risk",
             "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
           },
           {
             "type": "add-tests",
             "auto_fixable": false,
-            "description": "Add test coverage for `lib/messages/prune.ts` to reduce change risk",
+            "description": "Add test coverage for `lib/hooks.ts` to reduce change risk",
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
       },
       {
         "path": "index.ts",
-        "score": 24.8,
-        "commits": 126,
-        "weighted_commits": 42.23,
-        "lines_added": 1915,
-        "lines_deleted": 1760,
+        "score": 19.1,
+        "commits": 129,
+        "weighted_commits": 45.05,
+        "lines_added": 1941,
+        "lines_deleted": 1783,
         "complexity_density": 0.15,
         "fan_in": 0,
         "trend": "cooling",
@@ -1298,10 +1315,60 @@
         ]
       },
       {
+        "path": "lib/messages/prune.ts",
+        "score": 18.8,
+        "commits": 65,
+        "weighted_commits": 24.69,
+        "lines_added": 925,
+        "lines_deleted": 685,
+        "complexity_density": 0.27,
+        "fan_in": 2,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/messages/prune.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/messages/prune.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "lib/token-utils.ts",
+        "score": 15.6,
+        "commits": 10,
+        "weighted_commits": 8.24,
+        "lines_added": 223,
+        "lines_deleted": 200,
+        "complexity_density": 0.67,
+        "fan_in": 4,
+        "trend": "stable",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/token-utils.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/token-utils.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
         "path": "lib/messages/inject/inject.ts",
-        "score": 19.1,
+        "score": 13.7,
         "commits": 47,
-        "weighted_commits": 24.44,
+        "weighted_commits": 24.33,
         "lines_added": 673,
         "lines_deleted": 406,
         "complexity_density": 0.2,
@@ -1324,14 +1391,14 @@
       },
       {
         "path": "lib/state/utils.ts",
-        "score": 17.4,
-        "commits": 30,
-        "weighted_commits": 15.86,
-        "lines_added": 676,
-        "lines_deleted": 240,
+        "score": 13.3,
+        "commits": 31,
+        "weighted_commits": 16.79,
+        "lines_added": 680,
+        "lines_deleted": 243,
         "complexity_density": 0.28,
         "fan_in": 9,
-        "trend": "cooling",
+        "trend": "stable",
         "actions": [
           {
             "type": "refactor-file",
@@ -1348,10 +1415,35 @@
         ]
       },
       {
+        "path": "lib/ui/notification.ts",
+        "score": 12.1,
+        "commits": 58,
+        "weighted_commits": 25.18,
+        "lines_added": 1307,
+        "lines_deleted": 901,
+        "complexity_density": 0.17,
+        "fan_in": 8,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/ui/notification.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/ui/notification.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
         "path": "lib/messages/inject/utils.ts",
-        "score": 15.7,
+        "score": 11.3,
         "commits": 39,
-        "weighted_commits": 21.08,
+        "weighted_commits": 20.99,
         "lines_added": 849,
         "lines_deleted": 463,
         "complexity_density": 0.19,
@@ -1373,62 +1465,12 @@
         ]
       },
       {
-        "path": "lib/ui/notification.ts",
-        "score": 14.6,
-        "commits": 56,
-        "weighted_commits": 23.28,
-        "lines_added": 1268,
-        "lines_deleted": 862,
-        "complexity_density": 0.16,
-        "fan_in": 8,
-        "trend": "cooling",
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `lib/ui/notification.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `lib/ui/notification.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
-        "path": "lib/state/state.ts",
-        "score": 12.9,
-        "commits": 63,
-        "weighted_commits": 27.51,
-        "lines_added": 485,
-        "lines_deleted": 273,
-        "complexity_density": 0.12,
-        "fan_in": 1,
-        "trend": "cooling",
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `lib/state/state.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `lib/state/state.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
         "path": "lib/strategies/deduplication.ts",
-        "score": 12.5,
-        "commits": 26,
-        "weighted_commits": 10.99,
-        "lines_added": 222,
-        "lines_deleted": 108,
+        "score": 10.6,
+        "commits": 28,
+        "weighted_commits": 12.94,
+        "lines_added": 232,
+        "lines_deleted": 118,
         "complexity_density": 0.29,
         "fan_in": 1,
         "trend": "cooling",
@@ -1448,37 +1490,12 @@
         ]
       },
       {
-        "path": "lib/state/tool-cache.ts",
-        "score": 12.0,
-        "commits": 45,
-        "weighted_commits": 16.15,
-        "lines_added": 522,
-        "lines_deleted": 383,
-        "complexity_density": 0.19,
-        "fan_in": 2,
-        "trend": "cooling",
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `lib/state/tool-cache.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `lib/state/tool-cache.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
         "path": "lib/ui/utils.ts",
-        "score": 11.7,
-        "commits": 23,
-        "weighted_commits": 10.7,
-        "lines_added": 783,
-        "lines_deleted": 607,
+        "score": 10.0,
+        "commits": 25,
+        "weighted_commits": 12.65,
+        "lines_added": 787,
+        "lines_deleted": 610,
         "complexity_density": 0.28,
         "fan_in": 6,
         "trend": "cooling",
@@ -1498,37 +1515,62 @@
         ]
       },
       {
-        "path": "lib/token-utils.ts",
-        "score": 10.3,
-        "commits": 7,
-        "weighted_commits": 5.27,
-        "lines_added": 210,
-        "lines_deleted": 167,
-        "complexity_density": 0.5,
-        "fan_in": 11,
+        "path": "lib/state/state.ts",
+        "score": 9.6,
+        "commits": 64,
+        "weighted_commits": 28.39,
+        "lines_added": 490,
+        "lines_deleted": 277,
+        "complexity_density": 0.12,
+        "fan_in": 1,
         "trend": "cooling",
         "actions": [
           {
             "type": "refactor-file",
             "auto_fixable": false,
-            "description": "Refactor `lib/token-utils.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "description": "Refactor `lib/state/state.ts`, high complexity combined with frequent changes makes this a maintenance risk",
             "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
           },
           {
             "type": "add-tests",
             "auto_fixable": false,
-            "description": "Add test coverage for `lib/token-utils.ts` to reduce change risk",
+            "description": "Add test coverage for `lib/state/state.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "lib/state/tool-cache.ts",
+        "score": 9.2,
+        "commits": 46,
+        "weighted_commits": 17.09,
+        "lines_added": 523,
+        "lines_deleted": 384,
+        "complexity_density": 0.19,
+        "fan_in": 2,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/state/tool-cache.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/state/tool-cache.ts` to reduce change risk",
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
       },
       {
         "path": "lib/logger.ts",
-        "score": 9.8,
-        "commits": 24,
-        "weighted_commits": 9.27,
-        "lines_added": 560,
-        "lines_deleted": 431,
+        "score": 7.8,
+        "commits": 25,
+        "weighted_commits": 10.23,
+        "lines_added": 568,
+        "lines_deleted": 438,
         "complexity_density": 0.27,
         "fan_in": 31,
         "trend": "cooling",
@@ -1548,37 +1590,12 @@
         ]
       },
       {
-        "path": "lib/commands/context.ts",
-        "score": 8.3,
-        "commits": 23,
-        "weighted_commits": 11.22,
-        "lines_added": 645,
-        "lines_deleted": 245,
-        "complexity_density": 0.19,
-        "fan_in": 1,
-        "trend": "cooling",
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `lib/commands/context.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `lib/commands/context.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
         "path": "lib/state/persistence.ts",
-        "score": 8.1,
-        "commits": 29,
-        "weighted_commits": 12.22,
-        "lines_added": 593,
-        "lines_deleted": 293,
+        "score": 6.8,
+        "commits": 31,
+        "weighted_commits": 14.17,
+        "lines_added": 601,
+        "lines_deleted": 301,
         "complexity_density": 0.17,
         "fan_in": 7,
         "trend": "cooling",
@@ -1598,10 +1615,35 @@
         ]
       },
       {
+        "path": "lib/commands/context.ts",
+        "score": 6.5,
+        "commits": 24,
+        "weighted_commits": 12.17,
+        "lines_added": 646,
+        "lines_deleted": 246,
+        "complexity_density": 0.19,
+        "fan_in": 1,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/commands/context.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/commands/context.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
         "path": "lib/message-ids.ts",
-        "score": 7.5,
+        "score": 5.4,
         "commits": 14,
-        "weighted_commits": 7.66,
+        "weighted_commits": 7.63,
         "lines_added": 344,
         "lines_deleted": 45,
         "complexity_density": 0.25,
@@ -1623,10 +1665,110 @@
         ]
       },
       {
+        "path": "lib/commands/manual.ts",
+        "score": 4.6,
+        "commits": 16,
+        "weighted_commits": 9.66,
+        "lines_added": 263,
+        "lines_deleted": 127,
+        "complexity_density": 0.17,
+        "fan_in": 1,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/commands/manual.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/commands/manual.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "lib/strategies/purge-errors.ts",
+        "score": 4.4,
+        "commits": 17,
+        "weighted_commits": 8.61,
+        "lines_added": 171,
+        "lines_deleted": 91,
+        "complexity_density": 0.18,
+        "fan_in": 1,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/strategies/purge-errors.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/strategies/purge-errors.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "lib/subagents/subagent-results.ts",
+        "score": 4.3,
+        "commits": 5,
+        "weighted_commits": 3.99,
+        "lines_added": 86,
+        "lines_deleted": 26,
+        "complexity_density": 0.38,
+        "fan_in": 3,
+        "trend": "stable",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/subagents/subagent-results.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/subagents/subagent-results.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "lib/ui/param-formatters.ts",
+        "score": 4.3,
+        "commits": 3,
+        "weighted_commits": 2.99,
+        "lines_added": 136,
+        "lines_deleted": 26,
+        "complexity_density": 0.51,
+        "fan_in": 2,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/ui/param-formatters.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/ui/param-formatters.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
         "path": "lib/prompts/index.ts",
-        "score": 5.8,
+        "score": 4.2,
         "commits": 25,
-        "weighted_commits": 11.38,
+        "weighted_commits": 11.33,
         "lines_added": 240,
         "lines_deleted": 211,
         "complexity_density": 0.13,
@@ -1648,35 +1790,85 @@
         ]
       },
       {
-        "path": "lib/strategies/purge-errors.ts",
-        "score": 5.4,
+        "path": "lib/compress/protected-content.ts",
+        "score": 4.1,
+        "commits": 6,
+        "weighted_commits": 4.81,
+        "lines_added": 342,
+        "lines_deleted": 146,
+        "complexity_density": 0.3,
+        "fan_in": 3,
+        "trend": "stable",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/compress/protected-content.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/compress/protected-content.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "lib/compress/search.ts",
+        "score": 4.1,
+        "commits": 10,
+        "weighted_commits": 7.73,
+        "lines_added": 415,
+        "lines_deleted": 97,
+        "complexity_density": 0.19,
+        "fan_in": 4,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/compress/search.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/compress/search.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "lib/commands/sweep.ts",
+        "score": 4.0,
         "commits": 16,
-        "weighted_commits": 7.65,
-        "lines_added": 169,
+        "weighted_commits": 9.55,
+        "lines_added": 353,
         "lines_deleted": 89,
-        "complexity_density": 0.18,
+        "complexity_density": 0.15,
         "fan_in": 1,
         "trend": "cooling",
         "actions": [
           {
             "type": "refactor-file",
             "auto_fixable": false,
-            "description": "Refactor `lib/strategies/purge-errors.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "description": "Refactor `lib/commands/sweep.ts`, high complexity combined with frequent changes makes this a maintenance risk",
             "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
           },
           {
             "type": "add-tests",
             "auto_fixable": false,
-            "description": "Add test coverage for `lib/strategies/purge-errors.ts` to reduce change risk",
+            "description": "Add test coverage for `lib/commands/sweep.ts` to reduce change risk",
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
       },
       {
         "path": "lib/messages/priority.ts",
-        "score": 5.2,
+        "score": 3.7,
         "commits": 8,
-        "weighted_commits": 6.05,
+        "weighted_commits": 6.02,
         "lines_added": 135,
         "lines_deleted": 38,
         "complexity_density": 0.22,
@@ -1698,60 +1890,35 @@
         ]
       },
       {
-        "path": "lib/commands/manual.ts",
-        "score": 5.1,
-        "commits": 14,
-        "weighted_commits": 7.7,
-        "lines_added": 260,
-        "lines_deleted": 124,
-        "complexity_density": 0.17,
+        "path": "lib/messages/inject/subagent-results.ts",
+        "score": 3.5,
+        "commits": 9,
+        "weighted_commits": 5.84,
+        "lines_added": 174,
+        "lines_deleted": 54,
+        "complexity_density": 0.21,
         "fan_in": 1,
         "trend": "cooling",
         "actions": [
           {
             "type": "refactor-file",
             "auto_fixable": false,
-            "description": "Refactor `lib/commands/manual.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "description": "Refactor `lib/messages/inject/subagent-results.ts`, high complexity combined with frequent changes makes this a maintenance risk",
             "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
           },
           {
             "type": "add-tests",
             "auto_fixable": false,
-            "description": "Add test coverage for `lib/commands/manual.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
-        "path": "lib/compress/search.ts",
-        "score": 5.0,
-        "commits": 9,
-        "weighted_commits": 6.76,
-        "lines_added": 412,
-        "lines_deleted": 95,
-        "complexity_density": 0.19,
-        "fan_in": 4,
-        "trend": "cooling",
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `lib/compress/search.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `lib/compress/search.ts` to reduce change risk",
+            "description": "Add test coverage for `lib/messages/inject/subagent-results.ts` to reduce change risk",
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
       },
       {
         "path": "lib/compress/state.ts",
-        "score": 4.9,
+        "score": 3.5,
         "commits": 10,
-        "weighted_commits": 6.65,
+        "weighted_commits": 6.62,
         "lines_added": 465,
         "lines_deleted": 133,
         "complexity_density": 0.19,
@@ -1773,60 +1940,86 @@
         ]
       },
       {
-        "path": "lib/commands/sweep.ts",
-        "score": 4.5,
-        "commits": 14,
-        "weighted_commits": 7.59,
-        "lines_added": 350,
-        "lines_deleted": 87,
-        "complexity_density": 0.15,
-        "fan_in": 1,
+        "path": "tests/compress-message.test.ts",
+        "score": 3.3,
+        "commits": 13,
+        "weighted_commits": 8.92,
+        "lines_added": 913,
+        "lines_deleted": 135,
+        "complexity_density": 0.13,
+        "fan_in": 0,
         "trend": "cooling",
+        "is_test_path": true,
         "actions": [
           {
             "type": "refactor-file",
             "auto_fixable": false,
-            "description": "Refactor `lib/commands/sweep.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "description": "Refactor `tests/compress-message.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
             "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
           },
           {
             "type": "add-tests",
             "auto_fixable": false,
-            "description": "Add test coverage for `lib/commands/sweep.ts` to reduce change risk",
+            "description": "Add test coverage for `tests/compress-message.test.ts` to reduce change risk",
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
       },
       {
-        "path": "lib/messages/inject/subagent-results.ts",
-        "score": 4.0,
+        "path": "lib/compress/message-utils.ts",
+        "score": 3.0,
         "commits": 8,
-        "weighted_commits": 4.86,
-        "lines_added": 169,
-        "lines_deleted": 49,
-        "complexity_density": 0.21,
-        "fan_in": 1,
+        "weighted_commits": 5.65,
+        "lines_added": 358,
+        "lines_deleted": 93,
+        "complexity_density": 0.19,
+        "fan_in": 3,
         "trend": "cooling",
         "actions": [
           {
             "type": "refactor-file",
             "auto_fixable": false,
-            "description": "Refactor `lib/messages/inject/subagent-results.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "description": "Refactor `lib/compress/message-utils.ts`, high complexity combined with frequent changes makes this a maintenance risk",
             "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
           },
           {
             "type": "add-tests",
             "auto_fixable": false,
-            "description": "Add test coverage for `lib/messages/inject/subagent-results.ts` to reduce change risk",
+            "description": "Add test coverage for `lib/compress/message-utils.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "lib/protected-patterns.ts",
+        "score": 3.0,
+        "commits": 5,
+        "weighted_commits": 3.54,
+        "lines_added": 166,
+        "lines_deleted": 21,
+        "complexity_density": 0.3,
+        "fan_in": 5,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/protected-patterns.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/protected-patterns.ts` to reduce change risk",
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
       },
       {
         "path": "lib/token-counting.ts",
-        "score": 3.9,
+        "score": 2.8,
         "commits": 3,
-        "weighted_commits": 3.0,
+        "weighted_commits": 2.99,
         "lines_added": 111,
         "lines_deleted": 28,
         "complexity_density": 0.33,
@@ -1849,9 +2042,9 @@
       },
       {
         "path": "lib/compress/timing.ts",
-        "score": 3.6,
+        "score": 2.6,
         "commits": 6,
-        "weighted_commits": 4.22,
+        "weighted_commits": 4.2,
         "lines_added": 192,
         "lines_deleted": 95,
         "complexity_density": 0.22,
@@ -1873,86 +2066,10 @@
         ]
       },
       {
-        "path": "lib/compress/message-utils.ts",
-        "score": 3.5,
-        "commits": 7,
-        "weighted_commits": 4.67,
-        "lines_added": 355,
-        "lines_deleted": 90,
-        "complexity_density": 0.19,
-        "fan_in": 3,
-        "trend": "cooling",
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `lib/compress/message-utils.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `lib/compress/message-utils.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
-        "path": "tests/compress-message.test.ts",
-        "score": 3.5,
-        "commits": 11,
-        "weighted_commits": 6.96,
-        "lines_added": 899,
-        "lines_deleted": 122,
-        "complexity_density": 0.13,
-        "fan_in": 0,
-        "trend": "cooling",
-        "is_test_path": true,
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `tests/compress-message.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `tests/compress-message.test.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
-        "path": "lib/compress/protected-content.ts",
-        "score": 3.3,
-        "commits": 4,
-        "weighted_commits": 2.82,
-        "lines_added": 288,
-        "lines_deleted": 102,
-        "complexity_density": 0.3,
-        "fan_in": 2,
-        "trend": "cooling",
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `lib/compress/protected-content.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `lib/compress/protected-content.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
         "path": "lib/messages/shape.ts",
-        "score": 3.3,
+        "score": 2.4,
         "commits": 3,
-        "weighted_commits": 2.33,
+        "weighted_commits": 2.32,
         "lines_added": 63,
         "lines_deleted": 11,
         "complexity_density": 0.36,
@@ -1974,10 +2091,35 @@
         ]
       },
       {
-        "path": "lib/strategies/prune-utils.ts",
-        "score": 3.1,
+        "path": "lib/messages/query.ts",
+        "score": 2.3,
         "commits": 3,
-        "weighted_commits": 2.84,
+        "weighted_commits": 2.28,
+        "lines_added": 73,
+        "lines_deleted": 1,
+        "complexity_density": 0.36,
+        "fan_in": 20,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/messages/query.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/messages/query.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "lib/strategies/prune-utils.ts",
+        "score": 2.2,
+        "commits": 3,
+        "weighted_commits": 2.83,
         "lines_added": 19,
         "lines_deleted": 2,
         "complexity_density": 0.28,
@@ -1999,35 +2141,35 @@
         ]
       },
       {
-        "path": "lib/protected-patterns.ts",
-        "score": 3.0,
-        "commits": 4,
-        "weighted_commits": 2.56,
-        "lines_added": 162,
-        "lines_deleted": 18,
-        "complexity_density": 0.3,
-        "fan_in": 5,
-        "trend": "cooling",
+        "path": "lib/commands/stats.ts",
+        "score": 2.1,
+        "commits": 11,
+        "weighted_commits": 6.65,
+        "lines_added": 173,
+        "lines_deleted": 24,
+        "complexity_density": 0.11,
+        "fan_in": 1,
+        "trend": "stable",
         "actions": [
           {
             "type": "refactor-file",
             "auto_fixable": false,
-            "description": "Refactor `lib/protected-patterns.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "description": "Refactor `lib/commands/stats.ts`, high complexity combined with frequent changes makes this a maintenance risk",
             "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
           },
           {
             "type": "add-tests",
             "auto_fixable": false,
-            "description": "Add test coverage for `lib/protected-patterns.ts` to reduce change risk",
+            "description": "Add test coverage for `lib/commands/stats.ts` to reduce change risk",
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
       },
       {
         "path": "lib/strategies/tool-call-pruning.ts",
-        "score": 2.8,
+        "score": 2.0,
         "commits": 3,
-        "weighted_commits": 2.51,
+        "weighted_commits": 2.5,
         "lines_added": 143,
         "lines_deleted": 32,
         "complexity_density": 0.29,
@@ -2049,37 +2191,62 @@
         ]
       },
       {
-        "path": "lib/subagents/subagent-results.ts",
-        "score": 2.3,
-        "commits": 3,
-        "weighted_commits": 2.0,
-        "lines_added": 77,
-        "lines_deleted": 9,
-        "complexity_density": 0.29,
-        "fan_in": 2,
+        "path": "lib/commands/help.ts",
+        "score": 2.0,
+        "commits": 14,
+        "weighted_commits": 7.69,
+        "lines_added": 123,
+        "lines_deleted": 46,
+        "complexity_density": 0.09,
+        "fan_in": 1,
         "trend": "cooling",
         "actions": [
           {
             "type": "refactor-file",
             "auto_fixable": false,
-            "description": "Refactor `lib/subagents/subagent-results.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "description": "Refactor `lib/commands/help.ts`, high complexity combined with frequent changes makes this a maintenance risk",
             "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
           },
           {
             "type": "add-tests",
             "auto_fixable": false,
-            "description": "Add test coverage for `lib/subagents/subagent-results.ts` to reduce change risk",
+            "description": "Add test coverage for `lib/commands/help.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "lib/auth.ts",
+        "score": 1.8,
+        "commits": 3,
+        "weighted_commits": 2.39,
+        "lines_added": 43,
+        "lines_deleted": 3,
+        "complexity_density": 0.27,
+        "fan_in": 1,
+        "trend": "accelerating",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/auth.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/auth.ts` to reduce change risk",
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
       },
       {
         "path": "tests/message-priority.test.ts",
-        "score": 2.1,
-        "commits": 17,
-        "weighted_commits": 10.67,
-        "lines_added": 1030,
-        "lines_deleted": 110,
+        "score": 1.6,
+        "commits": 18,
+        "weighted_commits": 11.63,
+        "lines_added": 1069,
+        "lines_deleted": 148,
         "complexity_density": 0.05,
         "fan_in": 0,
         "trend": "cooling",
@@ -2100,10 +2267,60 @@
         ]
       },
       {
+        "path": "lib/commands/decompress.ts",
+        "score": 1.6,
+        "commits": 5,
+        "weighted_commits": 3.72,
+        "lines_added": 368,
+        "lines_deleted": 193,
+        "complexity_density": 0.15,
+        "fan_in": 2,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/commands/decompress.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/commands/decompress.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "lib/commands/recompress.ts",
+        "score": 1.6,
+        "commits": 5,
+        "weighted_commits": 3.72,
+        "lines_added": 327,
+        "lines_deleted": 199,
+        "complexity_density": 0.15,
+        "fan_in": 2,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/commands/recompress.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/commands/recompress.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
         "path": "lib/messages/sync.ts",
-        "score": 2.1,
+        "score": 1.5,
         "commits": 4,
-        "weighted_commits": 2.49,
+        "weighted_commits": 2.48,
         "lines_added": 256,
         "lines_deleted": 56,
         "complexity_density": 0.22,
@@ -2125,85 +2342,36 @@
         ]
       },
       {
-        "path": "lib/host-permissions.ts",
-        "score": 2.1,
-        "commits": 3,
-        "weighted_commits": 2.11,
-        "lines_added": 126,
-        "lines_deleted": 17,
-        "complexity_density": 0.25,
-        "fan_in": 4,
-        "trend": "cooling",
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `lib/host-permissions.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `lib/host-permissions.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
-        "path": "lib/commands/stats.ts",
-        "score": 2.0,
-        "commits": 9,
-        "weighted_commits": 4.67,
-        "lines_added": 170,
-        "lines_deleted": 22,
-        "complexity_density": 0.11,
-        "fan_in": 1,
+        "path": "tests/compress-range.test.ts",
+        "score": 1.5,
+        "commits": 7,
+        "weighted_commits": 5.21,
+        "lines_added": 321,
+        "lines_deleted": 16,
+        "complexity_density": 0.1,
+        "fan_in": 0,
         "trend": "stable",
+        "is_test_path": true,
         "actions": [
           {
             "type": "refactor-file",
             "auto_fixable": false,
-            "description": "Refactor `lib/commands/stats.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "description": "Refactor `tests/compress-range.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
             "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
           },
           {
             "type": "add-tests",
             "auto_fixable": false,
-            "description": "Add test coverage for `lib/commands/stats.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
-        "path": "lib/commands/help.ts",
-        "score": 2.0,
-        "commits": 12,
-        "weighted_commits": 5.72,
-        "lines_added": 120,
-        "lines_deleted": 44,
-        "complexity_density": 0.09,
-        "fan_in": 1,
-        "trend": "stable",
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `lib/commands/help.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `lib/commands/help.ts` to reduce change risk",
+            "description": "Add test coverage for `tests/compress-range.test.ts` to reduce change risk",
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
       },
       {
         "path": "scripts/verify-package.mjs",
-        "score": 2.0,
+        "score": 1.5,
         "commits": 3,
-        "weighted_commits": 2.01,
+        "weighted_commits": 2.0,
         "lines_added": 241,
         "lines_deleted": 8,
         "complexity_density": 0.26,
@@ -2225,14 +2393,65 @@
         ]
       },
       {
+        "path": "lib/host-permissions.ts",
+        "score": 1.5,
+        "commits": 3,
+        "weighted_commits": 2.1,
+        "lines_added": 126,
+        "lines_deleted": 17,
+        "complexity_density": 0.25,
+        "fan_in": 4,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/host-permissions.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/host-permissions.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "tests/compression-groups.test.ts",
+        "score": 1.4,
+        "commits": 4,
+        "weighted_commits": 3.42,
+        "lines_added": 463,
+        "lines_deleted": 10,
+        "complexity_density": 0.14,
+        "fan_in": 0,
+        "trend": "accelerating",
+        "is_test_path": true,
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `tests/compression-groups.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `tests/compression-groups.test.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
         "path": "lib/prompts/store.ts",
-        "score": 1.8,
+        "score": 1.3,
         "commits": 7,
-        "weighted_commits": 3.88,
+        "weighted_commits": 3.87,
         "lines_added": 573,
         "lines_deleted": 106,
         "complexity_density": 0.12,
-        "fan_in": 7,
+        "fan_in": 8,
         "trend": "cooling",
         "actions": [
           {
@@ -2251,7 +2470,7 @@
       },
       {
         "path": "lib/messages/reasoning-strip.ts",
-        "score": 1.7,
+        "score": 1.2,
         "commits": 3,
         "weighted_commits": 1.64,
         "lines_added": 114,
@@ -2275,85 +2494,61 @@
         ]
       },
       {
-        "path": "lib/commands/decompress.ts",
-        "score": 1.6,
+        "path": "tests/message-utils.test.ts",
+        "score": 1.2,
         "commits": 4,
-        "weighted_commits": 2.74,
-        "lines_added": 366,
-        "lines_deleted": 192,
-        "complexity_density": 0.15,
-        "fan_in": 2,
-        "trend": "cooling",
+        "weighted_commits": 3.23,
+        "lines_added": 279,
+        "lines_deleted": 29,
+        "complexity_density": 0.13,
+        "fan_in": 0,
+        "trend": "stable",
+        "is_test_path": true,
         "actions": [
           {
             "type": "refactor-file",
             "auto_fixable": false,
-            "description": "Refactor `lib/commands/decompress.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "description": "Refactor `tests/message-utils.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
             "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
           },
           {
             "type": "add-tests",
             "auto_fixable": false,
-            "description": "Add test coverage for `lib/commands/decompress.ts` to reduce change risk",
+            "description": "Add test coverage for `tests/message-utils.test.ts` to reduce change risk",
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
       },
       {
-        "path": "lib/commands/recompress.ts",
-        "score": 1.6,
-        "commits": 4,
-        "weighted_commits": 2.74,
-        "lines_added": 325,
-        "lines_deleted": 198,
-        "complexity_density": 0.15,
-        "fan_in": 2,
-        "trend": "cooling",
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `lib/commands/recompress.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `lib/commands/recompress.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
-        "path": "lib/compress/range-utils.ts",
-        "score": 1.5,
+        "path": "lib/commands/compression-command-utils.ts",
+        "score": 1.1,
         "commits": 3,
-        "weighted_commits": 2.19,
-        "lines_added": 317,
-        "lines_deleted": 31,
-        "complexity_density": 0.17,
-        "fan_in": 2,
+        "weighted_commits": 2.99,
+        "lines_added": 282,
+        "lines_deleted": 12,
+        "complexity_density": 0.13,
+        "fan_in": 1,
         "trend": "cooling",
         "actions": [
           {
             "type": "refactor-file",
             "auto_fixable": false,
-            "description": "Refactor `lib/compress/range-utils.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "description": "Refactor `lib/commands/compression-command-utils.ts`, high complexity combined with frequent changes makes this a maintenance risk",
             "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
           },
           {
             "type": "add-tests",
             "auto_fixable": false,
-            "description": "Add test coverage for `lib/compress/range-utils.ts` to reduce change risk",
+            "description": "Add test coverage for `lib/commands/compression-command-utils.ts` to reduce change risk",
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
       },
       {
         "path": "lib/compress/message.ts",
-        "score": 1.5,
+        "score": 1.1,
         "commits": 10,
-        "weighted_commits": 6.59,
+        "weighted_commits": 6.56,
         "lines_added": 265,
         "lines_deleted": 103,
         "complexity_density": 0.06,
@@ -2375,38 +2570,12 @@
         ]
       },
       {
-        "path": "tests/compress-range.test.ts",
-        "score": 1.3,
-        "commits": 5,
-        "weighted_commits": 3.23,
-        "lines_added": 315,
-        "lines_deleted": 11,
-        "complexity_density": 0.1,
-        "fan_in": 0,
-        "trend": "cooling",
-        "is_test_path": true,
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `tests/compress-range.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `tests/compress-range.test.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
         "path": "lib/compress/pipeline.ts",
-        "score": 1.2,
-        "commits": 8,
-        "weighted_commits": 5.13,
-        "lines_added": 116,
-        "lines_deleted": 7,
+        "score": 1.0,
+        "commits": 9,
+        "weighted_commits": 6.11,
+        "lines_added": 118,
+        "lines_deleted": 8,
         "complexity_density": 0.06,
         "fan_in": 2,
         "trend": "cooling",
@@ -2426,10 +2595,61 @@
         ]
       },
       {
+        "path": "lib/compress/range-utils.ts",
+        "score": 1.0,
+        "commits": 3,
+        "weighted_commits": 2.18,
+        "lines_added": 317,
+        "lines_deleted": 31,
+        "complexity_density": 0.17,
+        "fan_in": 2,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/compress/range-utils.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/compress/range-utils.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "tests/hooks-permission.test.ts",
+        "score": 1.0,
+        "commits": 13,
+        "weighted_commits": 8.92,
+        "lines_added": 864,
+        "lines_deleted": 155,
+        "complexity_density": 0.04,
+        "fan_in": 0,
+        "trend": "cooling",
+        "is_test_path": true,
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `tests/hooks-permission.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `tests/hooks-permission.test.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
         "path": "scripts/print.ts",
-        "score": 1.2,
+        "score": 0.9,
         "commits": 8,
-        "weighted_commits": 3.96,
+        "weighted_commits": 3.94,
         "lines_added": 276,
         "lines_deleted": 171,
         "complexity_density": 0.08,
@@ -2451,62 +2671,10 @@
         ]
       },
       {
-        "path": "tests/hooks-permission.test.ts",
-        "score": 1.2,
-        "commits": 12,
-        "weighted_commits": 7.96,
-        "lines_added": 843,
-        "lines_deleted": 139,
-        "complexity_density": 0.04,
-        "fan_in": 0,
-        "trend": "cooling",
-        "is_test_path": true,
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `tests/hooks-permission.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `tests/hooks-permission.test.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
-        "path": "tests/message-utils.test.ts",
-        "score": 1.1,
-        "commits": 3,
-        "weighted_commits": 2.24,
-        "lines_added": 263,
-        "lines_deleted": 17,
-        "complexity_density": 0.13,
-        "fan_in": 0,
-        "trend": "cooling",
-        "is_test_path": true,
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `tests/message-utils.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `tests/message-utils.test.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
         "path": "tests/prompts.test.ts",
-        "score": 1.1,
+        "score": 0.8,
         "commits": 6,
-        "weighted_commits": 3.57,
+        "weighted_commits": 3.55,
         "lines_added": 169,
         "lines_deleted": 5,
         "complexity_density": 0.08,
@@ -2530,9 +2698,9 @@
       },
       {
         "path": "lib/compress/range.ts",
-        "score": 0.8,
+        "score": 0.6,
         "commits": 8,
-        "weighted_commits": 5.34,
+        "weighted_commits": 5.32,
         "lines_added": 348,
         "lines_deleted": 137,
         "complexity_density": 0.04,
@@ -2554,10 +2722,36 @@
         ]
       },
       {
+        "path": "tests/token-counting.test.ts",
+        "score": 0.5,
+        "commits": 5,
+        "weighted_commits": 3.86,
+        "lines_added": 182,
+        "lines_deleted": 7,
+        "complexity_density": 0.05,
+        "fan_in": 0,
+        "trend": "cooling",
+        "is_test_path": true,
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `tests/token-counting.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `tests/token-counting.test.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
         "path": "tests/token-usage.test.ts",
-        "score": 0.4,
+        "score": 0.3,
         "commits": 4,
-        "weighted_commits": 2.68,
+        "weighted_commits": 2.67,
         "lines_added": 305,
         "lines_deleted": 1,
         "complexity_density": 0.04,
@@ -2581,9 +2775,9 @@
       },
       {
         "path": "tests/compress-range-placeholders.test.ts",
-        "score": 0.4,
+        "score": 0.3,
         "commits": 4,
-        "weighted_commits": 2.38,
+        "weighted_commits": 2.37,
         "lines_added": 122,
         "lines_deleted": 3,
         "complexity_density": 0.04,
@@ -2604,108 +2798,20 @@
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
-      },
-      {
-        "path": "tests/token-counting.test.ts",
-        "score": 0.4,
-        "commits": 3,
-        "weighted_commits": 1.87,
-        "lines_added": 175,
-        "lines_deleted": 1,
-        "complexity_density": 0.05,
-        "fan_in": 0,
-        "trend": "accelerating",
-        "is_test_path": true,
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `tests/token-counting.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `tests/token-counting.test.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
       }
     ],
     "hotspot_summary": {
       "since": "6 months",
       "min_commits": 3,
-      "files_analyzed": 58,
-      "files_excluded": 16,
+      "files_analyzed": 63,
+      "files_excluded": 14,
       "shallow_clone": false
     },
     "targets": [
       {
-        "path": "lib/token-utils.ts",
-        "priority": 34.1,
-        "efficiency": 17.1,
-        "recommendation": "2 complex functions lack test coverage path, add tests before modifying",
-        "category": "add_test_coverage",
-        "effort": "medium",
-        "confidence": "high",
-        "factors": [
-          {
-            "metric": "complexity_density",
-            "value": 0.5,
-            "threshold": 0.3,
-            "detail": "density 0.50 exceeds 0.3"
-          },
-          {
-            "metric": "fan_in",
-            "value": 11.0,
-            "threshold": 4.0,
-            "detail": "11 files depend on this"
-          },
-          {
-            "metric": "crap_max",
-            "value": 132.0,
-            "threshold": 30.0,
-            "detail": "2 functions with untested complexity risk"
-          }
-        ],
-        "evidence": {
-          "complex_functions": [
-            {
-              "name": "getCurrentTokenUsage",
-              "line": 23,
-              "cognitive": 8
-            },
-            {
-              "name": "sumAssistantTokenUsage",
-              "line": 14,
-              "cognitive": 5
-            },
-            {
-              "name": "isBeforeCompaction",
-              "line": 6,
-              "cognitive": 3
-            }
-          ]
-        },
-        "actions": [
-          {
-            "type": "apply-refactoring",
-            "auto_fixable": false,
-            "description": "2 complex functions lack test coverage path, add tests before modifying",
-            "category": "add_test_coverage"
-          },
-          {
-            "type": "suppress-line",
-            "auto_fixable": false,
-            "description": "Suppress the underlying complexity finding",
-            "comment": "// fallow-ignore-next-line complexity"
-          }
-        ]
-      },
-      {
         "path": "lib/messages/query.ts",
-        "priority": 28.5,
-        "efficiency": 9.5,
+        "priority": 29.1,
+        "efficiency": 9.7,
         "recommendation": "Split high-impact file (73 LOC) — 20 dependents amplify every change",
         "category": "split_high_impact",
         "effort": "high",
@@ -2741,8 +2847,8 @@
       },
       {
         "path": "lib/token-counting.ts",
-        "priority": 26.8,
-        "efficiency": 8.9,
+        "priority": 26.5,
+        "efficiency": 8.8,
         "recommendation": "Split high-impact file (84 LOC) — 12 dependents amplify every change",
         "category": "split_high_impact",
         "effort": "high",
@@ -2778,8 +2884,8 @@
       },
       {
         "path": "lib/ui/param-formatters.ts",
-        "priority": 18.1,
-        "efficiency": 6.0,
+        "priority": 18.9,
+        "efficiency": 6.3,
         "recommendation": "5 complex functions lack test coverage path, add tests before modifying",
         "category": "add_test_coverage",
         "effort": "high",
@@ -2787,9 +2893,9 @@
         "factors": [
           {
             "metric": "complexity_density",
-            "value": 0.52,
+            "value": 0.51,
             "threshold": 0.3,
-            "detail": "density 0.52 exceeds 0.3"
+            "detail": "density 0.51 exceeds 0.3"
           },
           {
             "metric": "crap_max",
@@ -2807,7 +2913,7 @@
             },
             {
               "name": "formatQuestionParams",
-              "line": 59,
+              "line": 58,
               "cognitive": 6
             },
             {
