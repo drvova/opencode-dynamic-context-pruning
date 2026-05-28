@@ -1,5 +1,5 @@
 import type { PluginConfig } from "../config"
-import { countAllMessageTokens } from "../token-counting"
+import { countAllMessageTokens } from "../token-counting-tools"
 import { isMessageCompacted } from "../state/utils"
 import type { SessionState, WithParts } from "../state"
 import { isIgnoredUserMessage, isProtectedUserMessage, messageHasCompress } from "./query"

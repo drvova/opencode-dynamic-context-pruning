@@ -57,3 +57,17 @@ export function getTotalToolTokens(state: SessionState, toolIds: string[]): numb
     }
     return total
 }
+
+export function countAllMessageTokens(msg: { parts?: any[] }): number {
+    const parts = Array.isArray(msg.parts) ? msg.parts : []
+    const texts: string[] = []
+    for (const part of parts) {
+        if (part.type === "text") {
+            texts.push(part.text)
+        } else {
+            texts.push(...extractToolContent(part))
+        }
+    }
+    if (texts.length === 0) return 0
+    return estimateTokensBatch(texts)
+}
