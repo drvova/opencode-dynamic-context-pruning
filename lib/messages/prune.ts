@@ -1,7 +1,7 @@
 import type { CompressionBlock, SessionState, WithParts } from "../state"
 import type { Logger } from "../logger"
 import type { PluginConfig } from "../config"
-import type { Part } from "@opencode-ai/sdk/v2"
+import type { Part, ToolStateCompleted } from "@opencode-ai/sdk/v2"
 import { isMessageCompacted } from "../state/utils"
 import { createSyntheticUserMessage, replaceBlockIdsWithBlocked } from "./utils"
 import { getLastUserMessage } from "./query"
@@ -74,7 +74,7 @@ const forEachToolPartWithStatus = (
     state: SessionState,
     messages: WithParts[],
     status: string,
-    fn: (part: any) => void,
+    fn: (part: ToolPart) => void,
 ): void => {
     forEachPrunableMessage(state, messages, (_msg, toolParts) => {
         for (const part of toolParts) {
@@ -87,22 +87,24 @@ const forEachToolPartWithStatus = (
 const pruneToolOutputs = (state: SessionState, _logger: Logger, messages: WithParts[]): void => {
     forEachToolPartWithStatus(state, messages, "completed", (part) => {
         if (part.tool === "question" || part.tool === "edit" || part.tool === "write") return
-        part.state.output = PRUNED_TOOL_OUTPUT_REPLACEMENT
+        const completed = part.state as ToolStateCompleted
+        completed.output = PRUNED_TOOL_OUTPUT_REPLACEMENT
     })
 }
 
 const pruneToolInputs = (state: SessionState, _logger: Logger, messages: WithParts[]): void => {
     forEachToolPartWithStatus(state, messages, "completed", (part) => {
         if (part.tool !== "question") return
-        if (part.state.input?.questions !== undefined) {
-            part.state.input.questions = PRUNED_QUESTION_INPUT_REPLACEMENT
+        const completed = part.state as ToolStateCompleted
+        if (completed.input?.questions !== undefined) {
+            completed.input.questions = PRUNED_QUESTION_INPUT_REPLACEMENT
         }
     })
 }
 
 const pruneToolErrors = (state: SessionState, _logger: Logger, messages: WithParts[]): void => {
     forEachToolPartWithStatus(state, messages, "error", (part) => {
-        const input = part.state.input
+        const input = (part.state as { input?: Record<string, unknown> }).input
         if (input && typeof input === "object") {
                 for (const key of Object.keys(input)) {
                     if (typeof input[key] === "string") {

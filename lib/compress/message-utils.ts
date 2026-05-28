@@ -5,7 +5,7 @@ export function extractCompressCallId(toolCtx: unknown): string | undefined {
 }
 
 import type { PluginConfig } from "../config"
-import type { SessionState } from "../state"
+import type { SessionState, WithParts } from "../state"
 import { parseBoundaryId } from "../message-ids"
 import { isIgnoredUserMessage, isProtectedUserMessage } from "../messages/query"
 import { resolveAnchorMessageId, resolveBoundaryIds, resolveSelection } from "./search"
@@ -180,7 +180,7 @@ export function resolveMessages(
             )
             seenMessageIds.add(plan.entry.messageId)
             plans.push(plan)
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (error instanceof SoftIssue) {
                 issues.push({ kind: error.kind, messageId: error.messageId })
                 continue
@@ -232,7 +232,7 @@ function validateAndFetchMessage(
 
 function checkCompressionEligibility(
     config: PluginConfig,
-    rawMessage: any,
+    rawMessage: WithParts,
     state: SessionState,
     messageId: string,
     ref: string,

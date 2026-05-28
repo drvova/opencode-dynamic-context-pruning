@@ -538,8 +538,8 @@ test("compress message mode sends one aggregated notification for batched messag
                 get: async () => ({ data: { parentID: null } }),
             },
             tui: {
-                showToast: async ({ body }: { body: { message: string } }) => {
-                    toastCalls.push(body.message)
+                showToast: async ({ message }: { message: string }) => {
+                    toastCalls.push(message)
                 },
             },
         },

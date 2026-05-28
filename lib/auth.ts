@@ -1,3 +1,5 @@
+import type { OpencodeClient } from "@opencode-ai/sdk/v2"
+
 export function isSecureMode(): boolean {
     return !!process.env.OPENCODE_SERVER_PASSWORD
 }
@@ -12,7 +14,7 @@ function getAuthorizationHeader(): string | undefined {
     return `Basic ${credentials}`
 }
 
-export function configureClientAuth(client: any): any {
+export function configureClientAuth(client: OpencodeClient): OpencodeClient {
     const authHeader = getAuthorizationHeader()
 
     if (!authHeader) {
@@ -21,7 +23,8 @@ export function configureClientAuth(client: any): any {
 
     // The SDK client has an internal client with request interceptors
     // Access the underlying client to add the interceptor
-    const innerClient = client._client || client.client
+    const inner = client as unknown as Record<string, unknown>
+    const innerClient = (inner._client || inner.client) as { interceptors?: { request?: { use: (fn: (request: Request) => Request) => void } } } | undefined
 
     if (innerClient?.interceptors?.request) {
         innerClient.interceptors.request.use((request: Request) => {

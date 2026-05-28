@@ -1,15 +1,15 @@
-function formatReadParams(params: any): string {
+function formatReadParams(params: Record<string, unknown>): string {
     if (!params.filePath) return ""
-    const { offset, limit } = params
+    const { offset, limit } = params as { offset?: number; limit?: number }
     if (offset !== undefined && limit !== undefined) {
         return `${params.filePath} (lines ${offset}-${offset + limit})`
     }
     if (offset !== undefined) return `${params.filePath} (lines ${offset}+)`
     if (limit !== undefined) return `${params.filePath} (lines 0-${limit})`
-    return params.filePath
+    return params.filePath as string
 }
 
-function formatApplyPatchParams(params: any): string {
+function formatApplyPatchParams(params: Record<string, unknown>): string {
     if (typeof params.patchText !== "string") return "patch"
     const pathRegex = /\*\*\* (?:Add|Delete|Update) File: ([^\n\r]+)/g
     const paths: string[] = []
@@ -26,7 +26,7 @@ function formatApplyPatchParams(params: any): string {
     return `${count} file${plural}: ${uniquePaths[0]}, ${uniquePaths[1]}...`
 }
 
-function formatPathPattern(params: any): string {
+function formatPathPattern(params: Record<string, unknown>): string {
     if (params.pattern) {
         const pathInfo = params.path ? ` in ${params.path}` : ""
         return `"${params.pattern}"${pathInfo}`
@@ -34,19 +34,18 @@ function formatPathPattern(params: any): string {
     return "(unknown pattern)"
 }
 
-function formatBashParams(params: any): string {
-    if (params.description) return params.description
+function formatBashParams(params: Record<string, unknown>): string {
+    if (params.description) return params.description as string
     if (params.command) {
-        return params.command.length > 50
-            ? params.command.substring(0, 50) + "..."
-            : params.command
+        const cmd = params.command as string
+        return cmd.length > 50 ? cmd.substring(0, 50) + "..." : cmd
     }
     return ""
 }
 
-function formatLspParams(params: any): string {
-    const op = params.operation || "lsp"
-    const path = params.filePath || ""
+function formatLspParams(params: Record<string, unknown>): string {
+    const op = (params.operation as string) || "lsp"
+    const path = (params.filePath as string) || ""
     const line = params.line
     const char = params.character
     if (path && line !== undefined && char !== undefined) {
@@ -56,11 +55,11 @@ function formatLspParams(params: any): string {
     return op
 }
 
-function formatQuestionParams(params: any): string {
+function formatQuestionParams(params: Record<string, unknown>): string {
     const questions = params.questions
     if (!Array.isArray(questions) || questions.length === 0) return "question"
     const headers = questions
-        .map((q: any) => q.header || "")
+        .map((q: unknown) => ((q as Record<string, unknown>)?.header as string) || "")
         .filter(Boolean)
         .slice(0, 3)
     const count = questions.length
@@ -72,36 +71,36 @@ function formatQuestionParams(params: any): string {
     return `${count} question${plural}`
 }
 
-function formatFileParam(params: any): string {
-    return params.filePath || ""
+function formatFileParam(params: Record<string, unknown>): string {
+    return (params.filePath as string) || ""
 }
 
-function formatQueryParam(params: any): string {
+function formatQueryParam(params: Record<string, unknown>): string {
     return params.query ? `"${params.query}"` : ""
 }
 
-const PARAM_EXTRACTORS: Record<string, (params: any) => string> = {
+const PARAM_EXTRACTORS: Record<string, (params: Record<string, unknown>) => string> = {
     read: formatReadParams,
     write: formatFileParam,
     edit: formatFileParam,
     multiedit: formatFileParam,
     apply_patch: formatApplyPatchParams,
-    list: (p) => p.path || "(current directory)",
+    list: (p) => (p.path as string) || "(current directory)",
     glob: formatPathPattern,
     grep: formatPathPattern,
     bash: formatBashParams,
-    webfetch: (p) => p.url || "",
+    webfetch: (p) => (p.url as string) || "",
     websearch: formatQueryParam,
     codesearch: formatQueryParam,
-    todowrite: (p) => `${p.todos?.length || 0} todos`,
+    todowrite: (p) => `${(p.todos as unknown[])?.length || 0} todos`,
     todoread: () => "read todo list",
-    task: (p) => p.description || "",
-    skill: (p) => p.name || "",
+    task: (p) => (p.description as string) || "",
+    skill: (p) => (p.name as string) || "",
     lsp: formatLspParams,
     question: formatQuestionParams,
 }
 
-export function extractParameterKey(tool: string, parameters: any): string {
+export function extractParameterKey(tool: string, parameters: Record<string, unknown>): string {
     if (!parameters) return ""
     const extractor = PARAM_EXTRACTORS[tool]
     if (extractor) return extractor(parameters)

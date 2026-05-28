@@ -7,6 +7,7 @@
  *   /dcp sweep 10     - Prune the last 10 tools
  */
 
+import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import type { Logger } from "../logger"
 import type { SessionState, WithParts, ToolParameterEntry } from "../state"
 import type { PluginConfig } from "../config"
@@ -25,7 +26,7 @@ import {
 import { syncToolCache } from "../state/tool-cache"
 
 export interface SweepCommandContext {
-    client: any
+    client: OpencodeClient
     state: SessionState
     config: PluginConfig
     logger: Logger

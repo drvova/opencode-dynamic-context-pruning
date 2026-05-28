@@ -50,7 +50,7 @@ export const isIgnoredUserMessage = (message: WithParts): boolean => {
     }
 
     for (const part of parts) {
-        if (!(part as any).ignored) {
+        if (!(part as { ignored?: boolean }).ignored) {
             return false
         }
     }

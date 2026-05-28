@@ -173,8 +173,8 @@ test("compression notifications increment by tool call across range and message 
             get: async () => ({ data: { parentID: null } }),
         },
         tui: {
-            showToast: async ({ body }: { body: { message: string } }) => {
-                toastCalls.push(body.message)
+            showToast: async ({ message }: { message: string }) => {
+                toastCalls.push(message)
             },
         },
     }
@@ -272,8 +272,8 @@ test("decompress groups batched message compressions by tool call", async () => 
         session: {
             messages: async () => ({ data: rawMessages }),
             get: async () => ({ data: { parentID: null } }),
-            prompt: async ({ body }: { body: { parts: Array<{ text: string }> } }) => {
-                ignoredMessages.push(body.parts[0]?.text || "")
+            prompt: async ({ parts }: { parts: Array<{ text: string }> }) => {
+                ignoredMessages.push(parts[0]?.text || "")
             },
         },
     }
@@ -372,8 +372,8 @@ test("decompress keeps batched ranges individually restorable", async () => {
         session: {
             messages: async () => ({ data: rawMessages }),
             get: async () => ({ data: { parentID: null } }),
-            prompt: async ({ body }: { body: { parts: Array<{ text: string }> } }) => {
-                ignoredMessages.push(body.parts[0]?.text || "")
+            prompt: async ({ parts }: { parts: Array<{ text: string }> }) => {
+                ignoredMessages.push(parts[0]?.text || "")
             },
         },
     }

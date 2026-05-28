@@ -1,3 +1,4 @@
+import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import type { Logger } from "../logger"
 import type { SessionState } from "../state"
 import {
@@ -9,6 +10,13 @@ import {
 import { ToolParameterEntry } from "../state"
 import { PluginConfig } from "../config"
 import { getActiveSummaryTokenUsage } from "../state/utils"
+
+export interface PromptParams {
+    agent?: string
+    variant?: string
+    providerId?: string
+    modelId?: string
+}
 
 type PruneReason = "completion" | "noise" | "extraction"
 const PRUNE_REASON_LABELS: Record<PruneReason, string> = {
@@ -90,7 +98,7 @@ function truncateExtractedSection(
 }
 
 async function sendUnifiedNotification(
-    client: any,
+    client: OpencodeClient,
     logger: Logger,
     config: PluginConfig,
     state: SessionState,
@@ -98,7 +106,7 @@ async function sendUnifiedNotification(
     pruneToolIds: string[],
     toolMetadata: Map<string, ToolParameterEntry>,
     reason: PruneReason | undefined,
-    params: any,
+    params: PromptParams,
     workingDirectory: string,
 ): Promise<boolean> {
     const hasPruned = pruneToolIds.length > 0
@@ -121,12 +129,10 @@ async function sendUnifiedNotification(
             config.pruneNotification === "minimal" ? toastMessage : truncateToastBody(toastMessage)
 
         await client.tui.showToast({
-            body: {
-                title: "DCP: Compress Notification",
-                message: toastMessage,
-                variant: "info",
-                duration: 5000,
-            },
+            title: "DCP: Compress Notification",
+            message: toastMessage,
+            variant: "info",
+            duration: 5000,
         })
         return true
     }
@@ -263,7 +269,7 @@ function buildDetailedCompressMessage(
 }
 
 async function sendCompressionToast(
-    client: any,
+    client: OpencodeClient,
     message: string,
     summary: string,
     summaryTokensStr: string,
@@ -283,17 +289,15 @@ async function sendCompressionToast(
         config.pruneNotification === "minimal" ? toastMessage : truncateToastBody(toastMessage)
 
     await client.tui.showToast({
-        body: {
-            title: "DCP: Compress Notification",
-            message: toastMessage,
-            variant: "info",
-            duration: 5000,
-        },
+        title: "DCP: Compress Notification",
+        message: toastMessage,
+        variant: "info",
+        duration: 5000,
     })
 }
 
 export async function sendCompressNotification(
-    client: any,
+    client: OpencodeClient,
     logger: Logger,
     config: PluginConfig,
     state: SessionState,
@@ -301,7 +305,7 @@ export async function sendCompressNotification(
     entries: CompressionNotificationEntry[],
     batchTopic: string | undefined,
     sessionMessageIds: string[],
-    params: any,
+    params: PromptParams,
 ): Promise<boolean> {
     if (config.pruneNotification === "off") {
         return false
@@ -365,10 +369,10 @@ export async function sendCompressNotification(
 }
 
 export async function sendIgnoredMessage(
-    client: any,
+    client: OpencodeClient,
     sessionID: string,
     text: string,
-    params: any,
+    params: PromptParams,
     logger: Logger,
 ): Promise<void> {
     const agent = params.agent || undefined
@@ -383,24 +387,20 @@ export async function sendIgnoredMessage(
 
     try {
         await client.session.prompt({
-            path: {
-                id: sessionID,
-            },
-            body: {
-                noReply: true,
-                agent: agent,
-                model: model,
-                variant: variant,
-                parts: [
-                    {
-                        type: "text",
-                        text: text,
-                        ignored: true,
-                    },
-                ],
-            },
+            sessionID: sessionID,
+            noReply: true,
+            agent: agent,
+            model: model,
+            variant: variant,
+            parts: [
+                {
+                    type: "text",
+                    text: text,
+                    ignored: true,
+                },
+            ],
         })
-    } catch (error: any) {
-        logger.error("Failed to send notification", { error: error.message })
+    } catch (error: unknown) {
+        logger.error("Failed to send notification", { error: error instanceof Error ? error.message : String(error) })
     }
 }

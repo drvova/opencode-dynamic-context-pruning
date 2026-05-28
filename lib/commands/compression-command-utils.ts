@@ -1,10 +1,11 @@
 import { parseBlockRef } from "../message-ids"
 import type { Logger } from "../logger"
 import type { PruneMessagesState, SessionState, WithParts } from "../state/types"
+import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import { syncCompressionBlocks } from "../messages"
 import { getCurrentParams } from "../token-utils"
 import { formatTokenCount } from "../ui/utils"
-import { sendIgnoredMessage } from "../ui/notification"
+import { sendIgnoredMessage, type PromptParams } from "../ui/notification"
 import {
     getActiveCompressionTargets,
     getRecompressibleCompressionTargets,
@@ -13,7 +14,7 @@ import {
 } from "./compression-targets"
 
 interface CompressionCommandContext {
-    client: any
+    client: OpencodeClient
     state: SessionState
     logger: Logger
     sessionId: string
@@ -22,7 +23,7 @@ interface CompressionCommandContext {
 }
 
 interface PreparedCompressionCommandContext extends CompressionCommandContext {
-    params: any
+    params: PromptParams
     messagesState: PruneMessagesState
 }
 
@@ -45,10 +46,10 @@ const RECOMPRESS_LIST_OPTIONS: CompressionTargetListOptions = {
 }
 
 interface CompressionCommandTargetOptions extends CompressionTargetListOptions {
-    client: any
+    client: OpencodeClient
     sessionId: string
     logger: Logger
-    params: any
+    params: PromptParams
     args: string[]
     messagesState: PruneMessagesState
     availableTargets: CompressionTarget[]
@@ -116,11 +117,11 @@ function formatCompressionTargetList(
 }
 
 export async function validateCommandArg(
-    client: any,
+    client: OpencodeClient,
     sessionId: string,
     commandName: string,
     args: string[],
-    params: any,
+    params: PromptParams,
     logger: Logger,
 ): Promise<string | undefined | null> {
     if (args.length > 1) {
@@ -147,9 +148,9 @@ function snapshotActiveMessages(messagesState: PruneMessagesState): Map<string, 
 }
 
 export async function validateAndSnapshot<T>(
-    client: any,
+    client: OpencodeClient,
     sessionId: string,
-    params: any,
+    params: PromptParams,
     logger: Logger,
     messagesState: PruneMessagesState,
     validationResult: string | T,
@@ -166,12 +167,12 @@ export async function validateAndSnapshot<T>(
 }
 
 export async function resolveCompressionTargetArg(
-    client: any,
+    client: OpencodeClient,
     sessionId: string,
     targetArg: string | undefined,
     commandName: string,
     messagesState: PruneMessagesState,
-    params: any,
+    params: PromptParams,
     logger: Logger,
     availableMessageIds?: string[],
 ): Promise<number | null> {

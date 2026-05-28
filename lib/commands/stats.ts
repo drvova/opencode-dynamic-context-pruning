@@ -3,6 +3,7 @@
  * Shows pruning statistics for the current session and all-time totals.
  */
 
+import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import type { Logger } from "../logger"
 import type { SessionState, WithParts } from "../state"
 import { sendIgnoredMessage } from "../ui/notification"
@@ -12,7 +13,7 @@ import { getCurrentParams } from "../token-utils"
 import { getActiveCompressionTargets } from "./compression-targets"
 
 export interface StatsCommandContext {
-    client: any
+    client: OpencodeClient
     state: SessionState
     logger: Logger
     sessionId: string

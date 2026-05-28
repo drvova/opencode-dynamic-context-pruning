@@ -1,4 +1,5 @@
-import type { Plugin } from "@opencode-ai/plugin"
+import type { Plugin, Config as OpencodePluginConfig } from "@opencode-ai/plugin"
+import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import { getConfig } from "./lib/config"
 import { createCompressMessageTool, createCompressRangeTool } from "./lib/compress"
 import {
@@ -23,11 +24,11 @@ const id = "opencode-dynamic-context-pruning"
 
 function disableCompressIfNeeded(
     config: ReturnType<typeof getConfig>,
-    opencodeConfig: Record<string, any>,
+    opencodeConfig: OpencodePluginConfig,
 ): void {
     if (
         config.compress.permission !== "deny" &&
-        compressDisabledByOpencode(opencodeConfig.permission)
+        compressDisabledByOpencode(opencodeConfig.permission as PermissionConfig)
     ) {
         config.compress.permission = "deny"
     }
@@ -35,7 +36,7 @@ function disableCompressIfNeeded(
 
 function registerDcpCommandIfEnabled(
     config: ReturnType<typeof getConfig>,
-    opencodeConfig: Record<string, any>,
+    opencodeConfig: OpencodePluginConfig,
 ): void {
     if (config.commands.enabled && config.compress.permission !== "deny") {
         opencodeConfig.command ??= {}
@@ -48,7 +49,7 @@ function registerDcpCommandIfEnabled(
 
 function addCompressToPrimaryToolsIfNeeded(
     config: ReturnType<typeof getConfig>,
-    opencodeConfig: Record<string, any>,
+    opencodeConfig: OpencodePluginConfig,
 ): void {
     const toolsToAdd: string[] = []
     if (config.compress.permission !== "deny" && !config.experimental.allowSubAgents) {
@@ -66,7 +67,7 @@ function addCompressToPrimaryToolsIfNeeded(
 
 function ensureCompressPermission(
     config: ReturnType<typeof getConfig>,
-    opencodeConfig: Record<string, any>,
+    opencodeConfig: OpencodePluginConfig,
 ): void {
     if (!hasExplicitToolPermission(opencodeConfig.permission, "compress")) {
         const permission = opencodeConfig.permission ?? {}
@@ -78,12 +79,12 @@ function ensureCompressPermission(
 }
 
 function extractAgentPermissions(
-    opencodeConfig: Record<string, any>,
+    opencodeConfig: OpencodePluginConfig,
 ): Record<string, PermissionConfig> {
     return Object.fromEntries(
         Object.entries(opencodeConfig.agent ?? {}).map(([name, agent]) => [
             name,
-            (agent as any)?.permission,
+            (agent as Record<string, unknown>)?.permission as PermissionConfig,
         ]),
     )
 }
@@ -103,8 +104,10 @@ const server: Plugin = (async (ctx) => {
         agents: {},
     }
 
+    const client = ctx.client as unknown as OpencodeClient
+
     if (isSecureMode()) {
-        configureClientAuth(ctx.client)
+        configureClientAuth(client)
         // logger.info("Secure mode detected, configured client authentication")
     }
 
@@ -113,7 +116,7 @@ const server: Plugin = (async (ctx) => {
     })
 
     const compressToolContext = {
-        client: ctx.client,
+        client,
         state,
         logger,
         config,
@@ -128,7 +131,7 @@ const server: Plugin = (async (ctx) => {
             prompts,
         ),
         "experimental.chat.messages.transform": createChatMessageTransformHandler(
-            ctx.client,
+            client,
             state,
             logger,
             config,
@@ -137,14 +140,14 @@ const server: Plugin = (async (ctx) => {
         ) as any,
         "experimental.text.complete": createTextCompleteHandler(),
         "command.execute.before": createCommandExecuteHandler(
-            ctx.client,
+            client,
             state,
             logger,
             config,
             ctx.directory,
             hostPermissions,
         ),
-        event: createEventHandler(state, logger),
+        event: createEventHandler(state, logger) as (input: { event: import("@opencode-ai/sdk").Event }) => Promise<void>,
         tool: {
             ...(config.compress.permission !== "deny" && {
                 compress:

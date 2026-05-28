@@ -3,6 +3,7 @@
  * Shows available DCP commands and their descriptions.
  */
 
+import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import type { Logger } from "../logger"
 import type { PluginConfig } from "../config"
 import type { SessionState, WithParts } from "../state"
@@ -11,7 +12,7 @@ import { sendIgnoredMessage } from "../ui/notification"
 import { getCurrentParams } from "../token-utils"
 
 export interface HelpCommandContext {
-    client: any
+    client: OpencodeClient
     state: SessionState
     config: PluginConfig
     logger: Logger

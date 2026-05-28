@@ -1,6 +1,7 @@
 import type { SessionState, WithParts } from "./state"
 import type { Logger } from "./logger"
 import type { PluginConfig } from "./config"
+import type { OpencodeClient, Part } from "@opencode-ai/sdk/v2"
 import { assignMessageRefs } from "./message-ids"
 import {
     buildPriorityMap,
@@ -39,6 +40,36 @@ import { type HostPermissionSnapshot } from "./host-permissions"
 import { compressPermission, syncCompressPermissionState } from "./compress-permission"
 import { checkSession, ensureSessionInitialized, saveSessionState, syncToolCache } from "./state"
 import { cacheSystemPromptTokens } from "./ui/utils"
+
+interface DcpCommandContext {
+    client: OpencodeClient
+    state: SessionState
+    config: PluginConfig
+    logger: Logger
+    sessionId: string
+    messages: WithParts[]
+}
+
+interface DcpEventPart {
+    type?: string
+    tool?: string
+    callID?: string
+    messageID?: string
+    state?: {
+        status?: string
+        time?: { start?: unknown; end?: unknown }
+        [key: string]: unknown
+    }
+}
+
+interface DcpEvent {
+    type?: string
+    time?: number
+    properties?: {
+        time?: number
+        part?: DcpEventPart
+    }
+}
 
 const INTERNAL_AGENT_SIGNATURES = [
     "You are a title generator",
@@ -120,7 +151,7 @@ function renderAndInjectPrompt(
 }
 
 export function createChatMessageTransformHandler(
-    client: any,
+    client: OpencodeClient,
     state: SessionState,
     logger: Logger,
     config: PluginConfig,
@@ -181,7 +212,7 @@ export function createChatMessageTransformHandler(
 }
 
 export function createCommandExecuteHandler(
-    client: any,
+    client: OpencodeClient,
     state: SessionState,
     logger: Logger,
     config: PluginConfig,
@@ -190,7 +221,7 @@ export function createCommandExecuteHandler(
 ) {
     return async (
         input: { command: string; sessionID: string; arguments: string },
-        output: { parts: any[] },
+        output: { parts: Part[] },
     ) => {
         if (!config.commands.enabled) return
         if (input.command !== "dcp") return
@@ -203,7 +234,7 @@ export function createCommandExecuteHandler(
 }
 
 async function prepareDcpExecution(
-    client: any,
+    client: OpencodeClient,
     state: SessionState,
     logger: Logger,
     config: PluginConfig,
@@ -211,7 +242,7 @@ async function prepareDcpExecution(
     input: { command: string; sessionID: string; arguments: string },
 ) {
     const messagesResponse = await client.session.messages({
-        path: { id: input.sessionID },
+        sessionID: input.sessionID,
     })
     const messages = filterMessages(messagesResponse.data || messagesResponse)
 
@@ -246,11 +277,11 @@ async function prepareDcpExecution(
 }
 
 async function handleDcpCompress(
-    commandCtx: any,
+    commandCtx: DcpCommandContext,
     subArgs: string[],
     subcommand: string,
     input: { command: string; sessionID: string; arguments: string },
-    output: { parts: any[] },
+    output: { parts: Part[] },
     state: SessionState,
 ) {
     const userFocus = subArgs.join(" ").trim()
@@ -269,13 +300,13 @@ async function handleDcpCompress(
     output.parts.push({
         type: "text",
         text: rawArgs ? `/dcp ${rawArgs}` : `/dcp ${subcommand}`,
-    })
+    } as Part)
 }
 
 async function routeDcpSubcommand(
-    prepared: { commandCtx: any; subcommand: string; subArgs: string[] },
+    prepared: { commandCtx: DcpCommandContext; subcommand: string; subArgs: string[] },
     input: { command: string; sessionID: string; arguments: string },
-    output: { parts: any[] },
+    output: { parts: Part[] },
     state: SessionState,
     workingDirectory: string,
 ) {
@@ -324,13 +355,14 @@ export function createTextCompleteHandler() {
 }
 
 export function createEventHandler(state: SessionState, logger: Logger) {
-    return async (input: { event: any }) => {
+    return async (input: { event: DcpEvent }) => {
         const eventTime = parseEventTime(input.event)
         if (input.event.type !== "message.part.updated") return
 
         const part = input.event.properties?.part
         if (part?.type !== "tool" || part.tool !== "compress") return
 
+        if (!part.state) return
         if (part.state.status === "pending") {
             handleCompressionPending(part, eventTime, state, logger)
             return
@@ -345,7 +377,7 @@ export function createEventHandler(state: SessionState, logger: Logger) {
     }
 }
 
-function parseEventTime(event: any): number | undefined {
+function parseEventTime(event: DcpEvent): number | undefined {
     if (typeof event?.time === "number" && Number.isFinite(event.time)) {
         return event.time
     }
@@ -358,7 +390,7 @@ function parseEventTime(event: any): number | undefined {
     return undefined
 }
 
-function handleCompressionPending(part: any, eventTime: number | undefined, state: SessionState, logger: Logger): void {
+function handleCompressionPending(part: DcpEventPart, eventTime: number | undefined, state: SessionState, logger: Logger): void {
     if (typeof part.callID !== "string" || typeof part.messageID !== "string") return
 
     const startedAt = eventTime ?? Date.now()
@@ -373,12 +405,12 @@ function handleCompressionPending(part: any, eventTime: number | undefined, stat
     })
 }
 
-async function handleCompressionCompleted(part: any, eventTime: number | undefined, state: SessionState, logger: Logger): Promise<void> {
+async function handleCompressionCompleted(part: DcpEventPart, eventTime: number | undefined, state: SessionState, logger: Logger): Promise<void> {
     if (typeof part.callID !== "string" || typeof part.messageID !== "string") return
 
     const key = buildCompressionTimingKey(part.messageID, part.callID)
     const start = consumeCompressionStart(state, part.messageID, part.callID)
-    const durationMs = resolveCompressionDuration(start, eventTime, part.state.time)
+    const durationMs = resolveCompressionDuration(start, eventTime, part.state?.time)
     if (typeof durationMs !== "number") return
 
     state.compressionTiming.pendingByCallId.set(key, {
@@ -400,7 +432,7 @@ async function handleCompressionCompleted(part: any, eventTime: number | undefin
     })
 }
 
-function cleanupCompressionStart(part: any, state: SessionState): void {
+function cleanupCompressionStart(part: DcpEventPart, state: SessionState): void {
     if (typeof part.callID === "string" && typeof part.messageID === "string") {
         state.compressionTiming.startsByCallId.delete(
             buildCompressionTimingKey(part.messageID, part.callID),

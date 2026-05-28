@@ -10,7 +10,7 @@
 import type { Logger } from "../logger"
 import type { SessionState, WithParts } from "../state"
 import type { PluginConfig } from "../config"
-import type { TextPart } from "@opencode-ai/sdk/v2"
+import type { OpencodeClient, TextPart } from "@opencode-ai/sdk/v2"
 import { sendIgnoredMessage } from "../ui/notification"
 import { getCurrentParams } from "../token-utils"
 import { buildCompressedBlockGuidance } from "../prompts/extensions/nudge"
@@ -47,7 +47,7 @@ function getTriggerPrompt(
 }
 
 export interface ManualCommandContext {
-    client: any
+    client: OpencodeClient
     state: SessionState
     config: PluginConfig
     logger: Logger

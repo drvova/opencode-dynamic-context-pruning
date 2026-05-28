@@ -1,5 +1,5 @@
 import type { Logger } from "../../logger"
-import type { Part, ToolPart } from "@opencode-ai/sdk/v2"
+import type { OpencodeClient, Part, ToolPart } from "@opencode-ai/sdk/v2"
 import type { SessionState, WithParts } from "../../state"
 import { filterMessages } from "../shape"
 import {
@@ -9,9 +9,9 @@ import {
 } from "../../subagents/subagent-results"
 import { stripHallucinationsFromString } from "../utils"
 
-async function fetchSubAgentMessages(client: any, sessionId: string): Promise<WithParts[]> {
+async function fetchSubAgentMessages(client: OpencodeClient, sessionId: string): Promise<WithParts[]> {
     const response = await client.session.messages({
-        path: { id: sessionId },
+        sessionID: sessionId,
     })
 
     return filterMessages(response?.data || response)
@@ -59,7 +59,7 @@ function tryApplyCachedSubAgentResult(
 
 async function fetchAndMergeSubAgentResult(
     part: CompletedTaskToolPart,
-    client: any,
+    client: OpencodeClient,
     cache: Map<string, string>,
     logger: Logger,
 ): Promise<void> {
@@ -92,7 +92,7 @@ async function fetchAndMergeSubAgentResult(
 }
 
 export const injectExtendedSubAgentResults = async (
-    client: any,
+    client: OpencodeClient,
     state: SessionState,
     logger: Logger,
     messages: WithParts[],

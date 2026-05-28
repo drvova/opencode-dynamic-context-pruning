@@ -200,8 +200,8 @@ test("compress range mode batches multiple ranges into one notification", async 
                 get: async () => ({ data: { parentID: "ses_parent" } }),
             },
             tui: {
-                showToast: async ({ body }: { body: { message: string } }) => {
-                    toastCalls.push(body.message)
+                showToast: async ({ message }: { message: string }) => {
+                    toastCalls.push(message)
                 },
             },
         },

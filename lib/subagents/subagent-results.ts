@@ -1,10 +1,13 @@
+import type { Part } from "@opencode-ai/sdk/v2"
 import type { WithParts } from "../state"
 import { messageHasCompress } from "../messages/query"
 
 const SUB_AGENT_RESULT_BLOCK_REGEX = /(<task_result>\s*)([\s\S]*?)(\s*<\/task_result>)/i
 
-export function getSubAgentId(part: any): string | null {
-    const sessionId = part?.state?.metadata?.sessionId
+export function getSubAgentId(part: Part): string | null {
+    if (part.type !== "tool") return null
+    if (part.state.status !== "completed") return null
+    const sessionId = part.state.metadata?.sessionId
     if (typeof sessionId !== "string") {
         return null
     }

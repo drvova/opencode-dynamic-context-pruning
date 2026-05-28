@@ -1,0 +1,12 @@
+{
+  "health": {
+    "maxCyclomatic": 20,
+    "maxCognitive": 25,
+    "maxCrap": 300
+  },
+  "production": {
+    "deadCode": false,
+    "health": false,
+    "dupes": true
+  }
+}

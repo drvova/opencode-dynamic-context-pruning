@@ -1,3 +1,4 @@
+import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import type {
     CompressionBlock,
     CompressionMode,
@@ -60,11 +61,11 @@ export function serializePruneMessagesState(
     }
 }
 
-export async function isSubAgentSession(client: any, sessionID: string): Promise<boolean> {
+export async function isSubAgentSession(client: OpencodeClient, sessionID: string): Promise<boolean> {
     try {
-        const result = await client.session.get({ path: { id: sessionID } })
+        const result = await client.session.get({ sessionID })
         return !!result.data?.parentID
-    } catch (error: any) {
+    } catch (error: unknown) {
         return false
     }
 }

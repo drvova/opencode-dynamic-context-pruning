@@ -102,10 +102,10 @@ export async function saveSessionState(
         }
 
         await writePersistedSessionState(sessionState.sessionId, state, logger)
-    } catch (error: any) {
+    } catch (error: unknown) {
         logger.error("Failed to save session state", {
             sessionId: sessionState.sessionId,
-            error: error?.message,
+            error: error instanceof Error ? error.message : String(error),
         })
     }
 }
@@ -197,10 +197,10 @@ export async function loadSessionState(
         })
 
         return state
-    } catch (error: any) {
+    } catch (error: unknown) {
         logger.warn("Failed to load session state", {
             sessionId,
-            error: error?.message,
+            error: error instanceof Error ? error.message : String(error),
         })
         return null
     }
@@ -253,9 +253,9 @@ export async function loadAllSessionStats(logger: Logger): Promise<AggregatedSta
             }
         }
 
-        logger.debug("Loaded all-time stats", result)
-    } catch (error: any) {
-        logger.warn("Failed to load all-time stats", { error: error?.message })
+        logger.debug("Loaded all-time stats", result as unknown as Record<string, unknown>)
+    } catch (error: unknown) {
+        logger.warn("Failed to load all-time stats", { error: error instanceof Error ? error.message : String(error) })
     }
 
     return result

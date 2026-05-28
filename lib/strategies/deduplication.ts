@@ -79,7 +79,7 @@ function getDuplicateToolIds(signatureMap: Map<string, string[]>): string[] {
     return newPruneIds
 }
 
-function createToolSignature(tool: string, parameters?: any): string {
+function createToolSignature(tool: string, parameters?: Record<string, unknown>): string {
     if (!parameters) {
         return tool
     }
@@ -88,12 +88,12 @@ function createToolSignature(tool: string, parameters?: any): string {
     return `${tool}::${JSON.stringify(sorted)}`
 }
 
-function normalizeParameters(params: any): any {
+function normalizeParameters(params: unknown): unknown {
     if (typeof params !== "object" || params === null) return params
     if (Array.isArray(params)) return params
 
-    const normalized: any = {}
-    for (const [key, value] of Object.entries(params)) {
+    const normalized: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
         if (value !== undefined && value !== null) {
             normalized[key] = value
         }
@@ -101,13 +101,13 @@ function normalizeParameters(params: any): any {
     return normalized
 }
 
-function sortObjectKeys(obj: any): any {
+function sortObjectKeys(obj: unknown): unknown {
     if (typeof obj !== "object" || obj === null) return obj
     if (Array.isArray(obj)) return obj.map(sortObjectKeys)
 
-    const sorted: any = {}
-    for (const key of Object.keys(obj).sort()) {
-        sorted[key] = sortObjectKeys(obj[key])
+    const sorted: Record<string, unknown> = {}
+    for (const key of Object.keys(obj as Record<string, unknown>).sort()) {
+        sorted[key] = sortObjectKeys((obj as Record<string, unknown>)[key])
     }
     return sorted
 }

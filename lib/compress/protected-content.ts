@@ -1,3 +1,4 @@
+import type { OpencodeClient, Part, ToolPart } from "@opencode-ai/sdk/v2"
 import type { SessionState, WithParts } from "../state"
 import { isIgnoredUserMessage } from "../messages/query"
 import {
@@ -62,7 +63,7 @@ function isActivelyCompressedMessage(state: SessionState, messageId: string): bo
 }
 
 function isToolPartProtected(
-    part: any,
+    part: ToolPart,
     protectedTools: string[],
     protectedFilePatterns: string[],
 ): boolean {
@@ -75,10 +76,11 @@ function isToolPartProtected(
 }
 
 async function fetchAndCacheSubAgentResult(
-    client: any,
+    client: OpencodeClient,
     state: SessionState,
-    part: any,
+    part: ToolPart,
 ): Promise<string | undefined> {
+    if (part.state.status !== "completed") return undefined
     const subAgentSessionId = getSubAgentId(part)
     if (!subAgentSessionId) return undefined
 
@@ -99,9 +101,9 @@ async function fetchAndCacheSubAgentResult(
 }
 
 async function resolveSubAgentOutput(
-    client: any,
+    client: OpencodeClient,
     state: SessionState,
-    part: any,
+    part: ToolPart,
     allowSubAgents: boolean,
 ): Promise<string | undefined> {
     if (!allowSubAgents || part.tool !== "task") return undefined
@@ -124,9 +126,9 @@ function formatProtectedToolOutput(tool: string, output: string): string {
 }
 
 async function processProtectedToolPart(
-    client: any,
+    client: OpencodeClient,
     state: SessionState,
-    part: any,
+    part: Part,
     allowSubAgents: boolean,
     protectedTools: string[],
     protectedFilePatterns: string[],
@@ -156,7 +158,7 @@ async function processProtectedToolPart(
 }
 
 export async function appendProtectedTools(
-    client: any,
+    client: OpencodeClient,
     state: SessionState,
     allowSubAgents: boolean,
     summary: string,

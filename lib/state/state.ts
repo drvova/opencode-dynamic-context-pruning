@@ -1,3 +1,4 @@
+import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import type { SessionState, ToolParameterEntry, WithParts } from "./types"
 import type { Logger } from "../logger"
 import { applyPendingCompressionDurations } from "../compress/timing"
@@ -15,7 +16,7 @@ import {
 import { getLastUserMessage } from "../messages/query"
 
 export const checkSession = async (
-    client: any,
+    client: OpencodeClient,
     state: SessionState,
     logger: Logger,
     messages: WithParts[],
@@ -39,8 +40,8 @@ export const checkSession = async (
                 messages,
                 manualModeDefault,
             )
-        } catch (err: any) {
-            logger.error("Failed to initialize session state", { error: err.message })
+        } catch (err: unknown) {
+            logger.error("Failed to initialize session state", { error: err instanceof Error ? err.message : String(err) })
         }
     }
 
@@ -161,7 +162,7 @@ async function loadAndMergePersistedState(
 }
 
 export async function ensureSessionInitialized(
-    client: any,
+    client: OpencodeClient,
     state: SessionState,
     sessionId: string,
     logger: Logger,

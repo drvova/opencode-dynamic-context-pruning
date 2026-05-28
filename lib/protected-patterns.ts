@@ -65,7 +65,7 @@ export function getFilePathsFromParameters(tool: string, parameters: unknown): s
     }
 
     const paths: string[] = []
-    const params = parameters as Record<string, any>
+    const params = parameters as Record<string, unknown>
 
     // 1. apply_patch uses patchText with embedded paths
     if (tool === "apply_patch" && typeof params.patchText === "string") {
@@ -83,8 +83,9 @@ export function getFilePathsFromParameters(tool: string, parameters: unknown): s
         }
         if (Array.isArray(params.edits)) {
             for (const edit of params.edits) {
-                if (edit && typeof edit.filePath === "string") {
-                    paths.push(edit.filePath)
+                const editEntry = edit as Record<string, unknown>
+                if (editEntry && typeof editEntry.filePath === "string") {
+                    paths.push(editEntry.filePath)
                 }
             }
         }

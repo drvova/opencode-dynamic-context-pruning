@@ -1,4 +1,5 @@
 import { SessionState, ToolParameterEntry, WithParts } from "../state"
+import type { AssistantMessage } from "@opencode-ai/sdk/v2"
 import { countTokens } from "../token-counting"
 import { isIgnoredUserMessage } from "../messages/query"
 import { extractParameterKey } from "./param-formatters"
@@ -57,7 +58,7 @@ export function formatProgressBar(
 }
 
 function getAssistantInputTokens(msg: WithParts): number {
-    const info = msg.info as any
+    const info = msg.info as AssistantMessage
     const input = info?.tokens?.input || 0
     const cacheRead = info?.tokens?.cache?.read || 0
     const cacheWrite = info?.tokens?.cache?.write || 0

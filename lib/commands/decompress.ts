@@ -1,3 +1,4 @@
+import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import type { CompressionBlock } from "../state"
 import {
     type CompressionTarget,
@@ -17,7 +18,7 @@ import {
 } from "./compression-context"
 
 export interface DecompressCommandContext {
-    client: any
+    client: OpencodeClient
     state: SessionState
     logger: Logger
     sessionId: string

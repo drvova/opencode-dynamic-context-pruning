@@ -3,6 +3,7 @@ import { join } from "path"
 import { existsSync } from "fs"
 import { homedir } from "os"
 import { minimizeMessagesForDebug } from "./logger/message-formatter"
+import type { WithParts } from "./state"
 
 export class Logger {
     private logDir: string
@@ -20,7 +21,7 @@ export class Logger {
         }
     }
 
-    private formatData(data?: any): string {
+    private formatData(data?: Record<string, unknown>): string {
         if (!data) return ""
 
         const parts: string[] = []
@@ -68,7 +69,7 @@ export class Logger {
         }
     }
 
-    private async write(level: string, component: string, message: string, data?: any) {
+    private async write(level: string, component: string, message: string, data?: Record<string, unknown>) {
         if (!this.enabled) return
 
         try {
@@ -89,27 +90,27 @@ export class Logger {
         } catch (error) {}
     }
 
-    info(message: string, data?: any) {
+    info(message: string, data?: Record<string, unknown>) {
         const component = this.getCallerFile(2)
         return this.write("INFO", component, message, data)
     }
 
-    debug(message: string, data?: any) {
+    debug(message: string, data?: Record<string, unknown>) {
         const component = this.getCallerFile(2)
         return this.write("DEBUG", component, message, data)
     }
 
-    warn(message: string, data?: any) {
+    warn(message: string, data?: Record<string, unknown>) {
         const component = this.getCallerFile(2)
         return this.write("WARN", component, message, data)
     }
 
-    error(message: string, data?: any) {
+    error(message: string, data?: Record<string, unknown>) {
         const component = this.getCallerFile(2)
         return this.write("ERROR", component, message, data)
     }
 
-    async saveContext(sessionId: string, messages: any[]) {
+    async saveContext(sessionId: string, messages: WithParts[]) {
         if (!this.enabled) return
 
         try {

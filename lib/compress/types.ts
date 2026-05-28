@@ -1,10 +1,11 @@
+import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import type { PluginConfig } from "../config"
 import type { Logger } from "../logger"
 import type { PromptStore } from "../prompts/store"
 import type { CompressionBlock, CompressionMode, SessionState, WithParts } from "../state"
 
 export interface ToolContext {
-    client: any
+    client: OpencodeClient
     state: SessionState
     logger: Logger
     config: PluginConfig
