@@ -4,7 +4,7 @@ function mergeProtectedTools(base: string[], override?: string[]): string[] {
     return [...new Set([...base, ...(override ?? [])])]
 }
 
-export function mergeStrategies(
+function mergeStrategies(
     base: PluginConfig["strategies"],
     override?: Partial<PluginConfig["strategies"]>,
 ): PluginConfig["strategies"] {
@@ -36,7 +36,7 @@ export function mergeStrategies(
     }
 }
 
-export function mergeCompress(
+function mergeCompress(
     base: PluginConfig["compress"],
     override?: CompressOverride,
 ): PluginConfig["compress"] {
@@ -61,7 +61,7 @@ export function mergeCompress(
     }
 }
 
-export function mergeCommands(
+function mergeCommands(
     base: PluginConfig["commands"],
     override?: Partial<PluginConfig["commands"]>,
 ): PluginConfig["commands"] {
@@ -75,7 +75,7 @@ export function mergeCommands(
     }
 }
 
-export function mergeManualMode(
+function mergeManualMode(
     base: PluginConfig["manualMode"],
     override?: Partial<PluginConfig["manualMode"]>,
 ): PluginConfig["manualMode"] {
@@ -87,7 +87,7 @@ export function mergeManualMode(
     }
 }
 
-export function mergeExperimental(
+function mergeExperimental(
     base: PluginConfig["experimental"],
     override?: Partial<PluginConfig["experimental"]>,
 ): PluginConfig["experimental"] {

@@ -1,6 +1,6 @@
 import type { PluginInput } from "@opencode-ai/plugin"
 
-export const VALID_CONFIG_KEYS = new Set([
+const VALID_CONFIG_KEYS = new Set([
     "$schema",
     "enabled",
     "debug",
@@ -48,7 +48,7 @@ export const VALID_CONFIG_KEYS = new Set([
     "strategies.toolCallPruning.protectedTools",
 ])
 
-export function getConfigKeyPaths(obj: Record<string, unknown>, prefix = ""): string[] {
+function getConfigKeyPaths(obj: Record<string, unknown>, prefix = ""): string[] {
     const keys: string[] = []
     for (const key of Object.keys(obj)) {
         const fullKey = prefix ? `${prefix}.${key}` : key
@@ -66,12 +66,12 @@ export function getConfigKeyPaths(obj: Record<string, unknown>, prefix = ""): st
     return keys
 }
 
-export function getInvalidConfigKeys(userConfig: Record<string, unknown>): string[] {
+function getInvalidConfigKeys(userConfig: Record<string, unknown>): string[] {
     const userKeys = getConfigKeyPaths(userConfig)
     return userKeys.filter((key) => !VALID_CONFIG_KEYS.has(key))
 }
 
-export interface ValidationError {
+interface ValidationError {
     key: string
     expected: string
     actual: string
@@ -79,7 +79,7 @@ export interface ValidationError {
 
 // --- Validation helpers ---
 
-export function validateBoolean(
+function validateBoolean(
     value: unknown,
     key: string,
     errors: ValidationError[],
@@ -89,7 +89,7 @@ export function validateBoolean(
     }
 }
 
-export function validateEnum(
+function validateEnum(
     value: unknown,
     key: string,
     values: string[],
@@ -101,7 +101,7 @@ export function validateEnum(
     }
 }
 
-export function validateNumber(
+function validateNumber(
     value: unknown,
     key: string,
     errors: ValidationError[],
@@ -111,7 +111,7 @@ export function validateNumber(
     }
 }
 
-export function validatePositiveNumber(
+function validatePositiveNumber(
     value: unknown,
     key: string,
     errors: ValidationError[],
@@ -127,7 +127,7 @@ export function validatePositiveNumber(
     }
 }
 
-export function validateStringArray(
+function validateStringArray(
     value: unknown,
     key: string,
     errors: ValidationError[],
@@ -140,7 +140,7 @@ export function validateStringArray(
     }
 }
 
-export function validateNested(
+function validateNested(
     value: unknown,
     key: string,
     errors: ValidationError[],
@@ -154,7 +154,7 @@ export function validateNested(
     }
 }
 
-export function validateNestedIfTruthy(
+function validateNestedIfTruthy(
     value: unknown,
     key: string,
     errors: ValidationError[],
@@ -168,7 +168,7 @@ export function validateNestedIfTruthy(
     }
 }
 
-export function validateLimitValue(
+function validateLimitValue(
     key: string,
     value: unknown,
     errors: ValidationError[],
@@ -185,7 +185,7 @@ export function validateLimitValue(
     }
 }
 
-export function validateModelLimits(
+function validateModelLimits(
     key: "compress.modelMaxLimits" | "compress.modelMinLimits",
     limits: unknown,
     errors: ValidationError[],
@@ -215,7 +215,7 @@ export function validateModelLimits(
 
 // --- Main validation ---
 
-export function validateConfigTypes(config: Record<string, unknown>): ValidationError[] {
+function validateConfigTypes(config: Record<string, unknown>): ValidationError[] {
     const errors: ValidationError[] = []
 
     validateBoolean(config.enabled, "enabled", errors)

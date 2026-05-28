@@ -5,18 +5,7 @@ import { getConfigPaths, createDefaultConfig, loadConfigFile, scheduleParseWarni
 import { showConfigWarnings } from "./validation.js"
 import { deepCloneConfig, mergeLayer } from "./merge.js"
 
-export type {
-    PluginConfig,
-    CompressConfig,
-    Commands,
-    ManualModeConfig,
-    PurgeErrors,
-    ToolCallPruning,
-    TurnProtection,
-    ExperimentalConfig,
-    Deduplication,
-    CompressOverride,
-} from "./types.js"
+export type { PluginConfig } from "./types.js"
 
 export function getConfig(ctx: PluginInput): PluginConfig {
     let config = deepCloneConfig(defaultConfig)

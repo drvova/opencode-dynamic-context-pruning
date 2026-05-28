@@ -4,7 +4,7 @@ import { parse } from "jsonc-parser/lib/esm/main.js"
 import type { PluginInput } from "@opencode-ai/plugin"
 import { GLOBAL_CONFIG_DIR, GLOBAL_CONFIG_PATH_JSONC } from "./defaults.js"
 
-export function findOpencodeDir(startDir: string): string | null {
+function findOpencodeDir(startDir: string): string | null {
     let current = startDir
     while (current !== "/") {
         const candidate = join(current, ".opencode")
@@ -20,7 +20,7 @@ export function findOpencodeDir(startDir: string): string | null {
     return null
 }
 
-export function resolveJsonConfigPath(dir: string, baseName: string): string | null {
+function resolveJsonConfigPath(dir: string, baseName: string): string | null {
     const jsonc = join(dir, `${baseName}.jsonc`)
     if (existsSync(jsonc)) return jsonc
     const json = join(dir, `${baseName}.json`)

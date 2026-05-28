@@ -2,7 +2,7 @@ import { join } from "path"
 import { homedir } from "os"
 import type { PluginConfig } from "./types.js"
 
-export const DEFAULT_PROTECTED_TOOLS = [
+const DEFAULT_PROTECTED_TOOLS = [
     "task",
     "skill",
     "todowrite",
@@ -15,7 +15,7 @@ export const DEFAULT_PROTECTED_TOOLS = [
     "edit",
 ]
 
-export const COMPRESS_DEFAULT_PROTECTED_TOOLS = ["task", "skill", "todowrite", "todoread"]
+const COMPRESS_DEFAULT_PROTECTED_TOOLS = ["task", "skill", "todowrite", "todoread"]
 
 export const defaultConfig: PluginConfig = {
     enabled: true,
@@ -74,4 +74,3 @@ export const GLOBAL_CONFIG_DIR = process.env.XDG_CONFIG_HOME
     ? join(process.env.XDG_CONFIG_HOME, "opencode")
     : join(homedir(), ".config", "opencode")
 export const GLOBAL_CONFIG_PATH_JSONC = join(GLOBAL_CONFIG_DIR, "dcp.jsonc")
-export const GLOBAL_CONFIG_PATH_JSON = join(GLOBAL_CONFIG_DIR, "dcp.json")
