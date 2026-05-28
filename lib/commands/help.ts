@@ -9,7 +9,7 @@ import type { PluginConfig } from "../config"
 import type { SessionState, WithParts } from "../state"
 import { compressPermission } from "../compress-permission"
 import { sendIgnoredMessage } from "../ui/notification"
-import { getCurrentParams } from "../token-utils"
+import { getCurrentParams } from "../token-params"
 
 export interface HelpCommandContext {
     client: OpencodeClient

@@ -9,7 +9,7 @@ import {
     estimateTokensBatch,
     extractCompletedToolOutput,
     extractToolContent,
-} from "../lib/token-utils"
+} from "../lib/token-counting"
 
 function buildToolMessage(part: Part): WithParts {
     return {

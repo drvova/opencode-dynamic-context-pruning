@@ -48,7 +48,7 @@ import { isIgnoredUserMessage } from "../messages/query"
 import { isMessageCompacted } from "../state/utils"
 import { countTokens } from "../token-counting"
 import { extractCompletedToolOutput } from "../token-counting"
-import { getCurrentParams } from "../token-utils"
+import { getCurrentParams } from "../token-params"
 import type { AssistantMessage, OpencodeClient, TextPart, ToolPart } from "@opencode-ai/sdk/v2"
 
 export interface ContextCommandContext {

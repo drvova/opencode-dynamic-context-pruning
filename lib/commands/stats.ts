@@ -9,7 +9,7 @@ import type { SessionState, WithParts } from "../state"
 import { sendIgnoredMessage } from "../ui/notification"
 import { formatTokenCount } from "../ui/utils"
 import { loadAllSessionStats, type AggregatedStats } from "../state/persistence"
-import { getCurrentParams } from "../token-utils"
+import { getCurrentParams } from "../token-params"
 import { getActiveCompressionTargets } from "./compression-targets"
 
 export interface StatsCommandContext {

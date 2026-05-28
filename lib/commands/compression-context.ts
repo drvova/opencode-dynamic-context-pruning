@@ -1,7 +1,7 @@
 export type { Logger } from "../logger"
 export type { PruneMessagesState, SessionState, WithParts } from "../state"
 export { syncCompressionBlocks } from "../messages"
-export { getCurrentParams } from "../token-utils"
+export { getCurrentParams } from "../token-params"
 export { saveSessionState } from "../state/persistence"
 export { sendIgnoredMessage } from "../ui/notification"
 export {

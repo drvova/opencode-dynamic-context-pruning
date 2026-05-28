@@ -3,7 +3,7 @@ import type { Logger } from "../logger"
 import type { PruneMessagesState, SessionState, WithParts } from "../state/types"
 import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import { syncCompressionBlocks } from "../messages"
-import { getCurrentParams } from "../token-utils"
+import { getCurrentParams } from "../token-params"
 import { formatTokenCount } from "../ui/utils"
 import { sendIgnoredMessage, type PromptParams } from "../ui/notification"
 import {
