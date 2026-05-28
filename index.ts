@@ -1,4 +1,4 @@
-import type { Plugin, PluginInput, Hooks, Config as OpencodePluginConfig } from "@opencode-ai/plugin"
+import type { PluginInput, Config as OpencodePluginConfig } from "@opencode-ai/plugin"
 import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import { getConfig } from "./lib/config"
 import { createCompressMessageTool, createCompressRangeTool } from "./lib/compress"
@@ -89,7 +89,7 @@ function extractAgentPermissions(
     )
 }
 
-const server: Plugin = async (ctx) => {
+const server = async (ctx: PluginInput) => {
     const config = getConfig(ctx)
 
     if (!config.enabled) {
@@ -137,7 +137,7 @@ const server: Plugin = async (ctx) => {
             config,
             prompts,
             hostPermissions,
-        ) as Hooks["experimental.chat.messages.transform"],
+        ),
         "experimental.text.complete": createTextCompleteHandler(),
         "command.execute.before": createCommandExecuteHandler(
             client,
@@ -147,7 +147,7 @@ const server: Plugin = async (ctx) => {
             ctx.directory,
             hostPermissions,
         ),
-        event: createEventHandler(state, logger) as Hooks["event"],
+        event: createEventHandler(state, logger),
         tool: {
             ...(config.compress.permission !== "deny" && {
                 compress:
