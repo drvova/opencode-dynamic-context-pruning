@@ -52,20 +52,9 @@ export function mergeSubagentResult(output: string, subAgentResultText: string):
 
 function getLastTextPart(message: WithParts): string {
     const parts = Array.isArray(message.parts) ? message.parts : []
-    for (let index = parts.length - 1; index >= 0; index--) {
-        const part = parts[index]
-        if (part.type !== "text" || typeof part.text !== "string") {
-            continue
-        }
-
-        const text = part.text.trim()
-        if (!text) {
-            continue
-        }
-
-        return text
-    }
-
-    return ""
+    const lastTextPart = parts.findLast(
+        (part) => part.type === "text" && typeof part.text === "string" && part.text.trim(),
+    )
+    return lastTextPart?.type === "text" ? lastTextPart.text.trim() : ""
 }
 

@@ -36,15 +36,13 @@ function collectUserTexts(
     searchContext: SearchContext,
     state: SessionState,
 ): string[] {
-    const userTexts: string[] = []
-    for (const messageId of selection.messageIds) {
-        if (isActivelyCompressedMessage(state, messageId)) continue
-        const message = searchContext.rawMessagesById.get(messageId)
-        if (!message || message.info.role !== "user" || isIgnoredUserMessage(message)) continue
-        const text = getFirstUserText(message)
-        if (text) userTexts.push(text)
-    }
-    return userTexts
+    return selection.messageIds
+        .filter((id) => !isActivelyCompressedMessage(state, id))
+        .map((id) => searchContext.rawMessagesById.get(id))
+        .filter((msg): msg is WithParts =>
+            !!msg && msg.info.role === "user" && !isIgnoredUserMessage(msg))
+        .map((msg) => getFirstUserText(msg))
+        .filter((text): text is string => !!text)
 }
 
 function getFirstUserText(message: WithParts): string | undefined {
@@ -125,6 +123,13 @@ function formatProtectedToolOutput(tool: string, output: string): string {
     return `\n### Tool: ${tool}\n${output}`
 }
 
+function extractCompletedToolOutput(part: ToolPart): string {
+    if (part.state.status !== "completed" || !part.state.output) return ""
+    return typeof part.state.output === "string"
+        ? part.state.output
+        : JSON.stringify(part.state.output)
+}
+
 async function processProtectedToolPart(
     client: OpencodeClient,
     state: SessionState,
@@ -136,25 +141,34 @@ async function processProtectedToolPart(
     if (part.type !== "tool" || !part.callID) return undefined
     if (!isToolPartProtected(part, protectedTools, protectedFilePatterns)) return undefined
 
-    let output = ""
+    const directOutput = extractCompletedToolOutput(part)
+    const subOutput = await resolveSubAgentOutput(client, state, part, allowSubAgents)
+    const output = subOutput ?? directOutput
 
-    if (part.state?.status === "completed" && part.state?.output) {
-        output =
-            typeof part.state.output === "string"
-                ? part.state.output
-                : JSON.stringify(part.state.output)
+    return output ? formatProtectedToolOutput(part.tool, output) : undefined
+}
+
+async function collectProtectedFromMessage(
+    client: OpencodeClient,
+    state: SessionState,
+    messageId: string,
+    searchContext: SearchContext,
+    allowSubAgents: boolean,
+    protectedTools: string[],
+    protectedFilePatterns: string[],
+): Promise<string[]> {
+    if (isActivelyCompressedMessage(state, messageId)) return []
+    const message = searchContext.rawMessagesById.get(messageId)
+    if (!message || !Array.isArray(message.parts)) return []
+
+    const outputs: string[] = []
+    for (const part of message.parts) {
+        const formatted = await processProtectedToolPart(
+            client, state, part, allowSubAgents, protectedTools, protectedFilePatterns,
+        )
+        if (formatted) outputs.push(formatted)
     }
-
-    const subOutput = await resolveSubAgentOutput(
-        client,
-        state,
-        part,
-        allowSubAgents,
-    )
-    if (subOutput !== undefined) output = subOutput
-
-    if (output) return formatProtectedToolOutput(part.tool, output)
-    return undefined
+    return outputs
 }
 
 export async function appendProtectedTools(
@@ -170,16 +184,10 @@ export async function appendProtectedTools(
     const protectedOutputs: string[] = []
 
     for (const messageId of selection.messageIds) {
-        if (isActivelyCompressedMessage(state, messageId)) continue
-        const message = searchContext.rawMessagesById.get(messageId)
-        if (!message) continue
-        const parts = Array.isArray(message.parts) ? message.parts : []
-        for (const part of parts) {
-            const formatted = await processProtectedToolPart(
-                client, state, part, allowSubAgents, protectedTools, protectedFilePatterns,
-            )
-            if (formatted) protectedOutputs.push(formatted)
-        }
+        const fromMessage = await collectProtectedFromMessage(
+            client, state, messageId, searchContext, allowSubAgents, protectedTools, protectedFilePatterns,
+        )
+        protectedOutputs.push(...fromMessage)
     }
 
     if (protectedOutputs.length === 0) return summary
