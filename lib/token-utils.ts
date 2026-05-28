@@ -2,40 +2,22 @@ import type { SessionState, WithParts } from "./state/types"
 import type { AssistantMessage } from "@opencode-ai/sdk/v2"
 
 function isBeforeCompaction(state: SessionState, msg: WithParts): boolean {
+    if (state.lastCompaction <= 0) return false
     return (
-        state.lastCompaction > 0 &&
-        (msg.info.time.created < state.lastCompaction ||
-            (msg.info.summary === true && msg.info.time.created === state.lastCompaction))
+        msg.info.time.created < state.lastCompaction ||
+        (msg.info.summary === true && msg.info.time.created === state.lastCompaction)
     )
 }
 
-function sumAssistantTokenUsage(info: AssistantMessage): number {
-    const input = info.tokens?.input || 0
-    const output = info.tokens?.output || 0
-    const reasoning = info.tokens?.reasoning || 0
-    const cacheRead = info.tokens?.cache?.read || 0
-    const cacheWrite = info.tokens?.cache?.write || 0
-    return input + output + reasoning + cacheRead + cacheWrite
+function sumAssistantTokenUsage(t: AssistantMessage["tokens"]): number {
+    return t.input + t.output + t.reasoning + (t.cache?.read ?? 0) + (t.cache?.write ?? 0)
 }
 
 export function getCurrentTokenUsage(state: SessionState, messages: WithParts[]): number {
-    for (let i = messages.length - 1; i >= 0; i--) {
-        const msg = messages[i]
-        if (msg.info.role !== "assistant") {
-            continue
-        }
-
-        const assistantInfo = msg.info as AssistantMessage
-        if ((assistantInfo.tokens?.output || 0) <= 0) {
-            continue
-        }
-
-        if (isBeforeCompaction(state, msg)) {
-            return 0
-        }
-
-        return sumAssistantTokenUsage(assistantInfo)
-    }
-
-    return 0
+    const lastAssistant = messages.findLast(
+        (msg) => msg.info.role === "assistant" && ((msg.info as AssistantMessage).tokens?.output ?? 0) > 0,
+    )
+    if (!lastAssistant) return 0
+    if (isBeforeCompaction(state, lastAssistant)) return 0
+    return sumAssistantTokenUsage((lastAssistant.info as AssistantMessage).tokens)
 }
