@@ -1,6 +1,16 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { extractParameterKey } from "../lib/ui/param-formatters"
+import {
+    extractParameterKey,
+    formatReadParams,
+    formatApplyPatchParams,
+    formatBashParams,
+    formatLspParams,
+    formatQuestionParams,
+    formatFileParam,
+    formatPathPattern,
+    formatQueryParam,
+} from "../lib/ui/param-formatters"
 
 test("formatReadParams", () => {
     assert.equal(extractParameterKey("read", { filePath: "/foo.txt" }), "/foo.txt")
@@ -138,4 +148,47 @@ test("inline param extractors", () => {
     assert.equal(extractParameterKey("todoread", {}), "read todo list")
     assert.equal(extractParameterKey("task", { description: "do things" }), "do things")
     assert.equal(extractParameterKey("skill", { name: "playwright" }), "playwright")
+})
+
+test("direct formatReadParams", () => {
+    assert.equal(formatReadParams({ filePath: "/a.ts" }), "/a.ts")
+    assert.equal(formatReadParams({ filePath: "/a.ts", offset: 5, limit: 3 }), "/a.ts (lines 5-8)")
+    assert.equal(formatReadParams({}), "")
+})
+
+test("direct formatApplyPatchParams", () => {
+    assert.equal(formatApplyPatchParams({ patchText: "*** Add File: /x.ts\n" }), "/x.ts")
+    assert.equal(formatApplyPatchParams({ patchText: 123 }), "patch")
+    assert.equal(formatApplyPatchParams({}), "patch")
+})
+
+test("direct formatBashParams", () => {
+    assert.equal(formatBashParams({ description: "test" }), "test")
+    assert.equal(formatBashParams({ command: "ls" }), "ls")
+    assert.equal(formatBashParams({}), "")
+})
+
+test("direct formatLspParams", () => {
+    assert.equal(formatLspParams({ operation: "def", filePath: "/a.ts", line: 1, character: 2 }), "def /a.ts:1:2")
+    assert.equal(formatLspParams({}), "lsp")
+})
+
+test("direct formatQuestionParams", () => {
+    assert.equal(formatQuestionParams({ questions: [{ header: "Q1" }] }), "1 question: Q1")
+    assert.equal(formatQuestionParams({}), "question")
+})
+
+test("direct formatFileParam", () => {
+    assert.equal(formatFileParam({ filePath: "/out.ts" }), "/out.ts")
+    assert.equal(formatFileParam({}), "")
+})
+
+test("direct formatPathPattern", () => {
+    assert.equal(formatPathPattern({ pattern: "*.ts", path: "/src" }), '"*.ts" in /src')
+    assert.equal(formatPathPattern({}), "(unknown pattern)")
+})
+
+test("direct formatQueryParam", () => {
+    assert.equal(formatQueryParam({ query: "test" }), '"test"')
+    assert.equal(formatQueryParam({}), "")
 })

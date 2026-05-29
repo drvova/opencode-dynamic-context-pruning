@@ -37,21 +37,12 @@ export function extractCompletedToolOutput(part: Part): string | undefined {
 }
 
 export function extractToolContent(part: Part): string[] {
-    const contents: string[] = []
-    if (part.type !== "tool") return contents
-
-    if (part.state.input !== undefined) {
-        contents.push(stringifyToolContent(part.state.input))
-    }
-
-    const completedOutput = extractCompletedToolOutput(part)
-    if (completedOutput !== undefined) {
-        contents.push(completedOutput)
-    } else if (part.state.status === "error" && part.state.error) {
-        contents.push(stringifyToolContent(part.state.error))
-    }
-
-    return contents
+    if (part.type !== "tool") return []
+    const input = part.state.input !== undefined ? [stringifyToolContent(part.state.input)] : []
+    const output = extractCompletedToolOutput(part)
+    if (output !== undefined) return [...input, output]
+    if (part.state.status === "error" && part.state.error) return [...input, stringifyToolContent(part.state.error)]
+    return input
 }
 
 export function countToolTokens(part: Part): number {
@@ -69,15 +60,10 @@ export function getTotalToolTokens(state: SessionState, toolIds: string[]): numb
 }
 
 export function countAllMessageTokens(msg: { parts?: Part[] }): number {
-    const parts = Array.isArray(msg.parts) ? msg.parts : []
-    const texts: string[] = []
-    for (const part of parts) {
-        if (part.type === "text") {
-            texts.push(part.text)
-        } else {
-            texts.push(...extractToolContent(part))
-        }
-    }
-    if (texts.length === 0) return 0
-    return estimateTokensBatch(texts)
+    const parts = msg.parts
+    if (!Array.isArray(parts) || parts.length === 0) return 0
+    const texts = parts.flatMap((part) =>
+        part.type === "text" ? [part.text] : extractToolContent(part),
+    )
+    return texts.length === 0 ? 0 : estimateTokensBatch(texts)
 }

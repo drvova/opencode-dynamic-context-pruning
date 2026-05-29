@@ -6,17 +6,15 @@ export const getLastUserMessage = (
     messages: WithParts[],
     startIndex?: number,
 ): WithParts | null => {
-    const start = startIndex ?? messages.length - 1
-    for (let i = start; i >= 0; i--) {
-        const msg = messages[i]
-        if (!isMessageWithInfo(msg)) {
-            continue
-        }
-        if (msg.info.role === "user" && !isIgnoredUserMessage(msg)) {
-            return msg
-        }
-    }
-    return null
+    const end = (startIndex ?? messages.length - 1) + 1
+    return (
+        messages.slice(0, end).findLast(
+            (msg): msg is WithParts =>
+                isMessageWithInfo(msg) &&
+                msg.info.role === "user" &&
+                !isIgnoredUserMessage(msg),
+        ) ?? null
+    )
 }
 
 export const messageHasCompress = (message: WithParts): boolean => {
@@ -36,26 +34,9 @@ export const messageHasCompress = (message: WithParts): boolean => {
 }
 
 export const isIgnoredUserMessage = (message: WithParts): boolean => {
-    if (!isMessageWithInfo(message)) {
-        return false
-    }
-
-    if (message.info.role !== "user") {
-        return false
-    }
-
+    if (!isMessageWithInfo(message) || message.info.role !== "user") return false
     const parts = Array.isArray(message.parts) ? message.parts : []
-    if (parts.length === 0) {
-        return true
-    }
-
-    for (const part of parts) {
-        if (!(part as { ignored?: boolean }).ignored) {
-            return false
-        }
-    }
-
-    return true
+    return parts.length === 0 || parts.every((part) => (part as { ignored?: boolean }).ignored)
 }
 
 export function isProtectedUserMessage(config: PluginConfig, message: WithParts): boolean {

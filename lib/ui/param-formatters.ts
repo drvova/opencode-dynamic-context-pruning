@@ -1,4 +1,4 @@
-function formatReadParams(params: Record<string, unknown>): string {
+export function formatReadParams(params: Record<string, unknown>): string {
     if (!params.filePath) return ""
     const { offset, limit } = params as { offset?: number; limit?: number }
     if (offset !== undefined && limit !== undefined) {
@@ -9,7 +9,7 @@ function formatReadParams(params: Record<string, unknown>): string {
     return params.filePath as string
 }
 
-function formatApplyPatchParams(params: Record<string, unknown>): string {
+export function formatApplyPatchParams(params: Record<string, unknown>): string {
     if (typeof params.patchText !== "string") return "patch"
     const pathRegex = /\*\*\* (?:Add|Delete|Update) File: ([^\n\r]+)/g
     const paths: string[] = []
@@ -26,7 +26,7 @@ function formatApplyPatchParams(params: Record<string, unknown>): string {
     return `${count} file${plural}: ${uniquePaths[0]}, ${uniquePaths[1]}...`
 }
 
-function formatPathPattern(params: Record<string, unknown>): string {
+export function formatPathPattern(params: Record<string, unknown>): string {
     if (params.pattern) {
         const pathInfo = params.path ? ` in ${params.path}` : ""
         return `"${params.pattern}"${pathInfo}`
@@ -34,7 +34,7 @@ function formatPathPattern(params: Record<string, unknown>): string {
     return "(unknown pattern)"
 }
 
-function formatBashParams(params: Record<string, unknown>): string {
+export function formatBashParams(params: Record<string, unknown>): string {
     if (params.description) return params.description as string
     if (params.command) {
         const cmd = params.command as string
@@ -43,7 +43,7 @@ function formatBashParams(params: Record<string, unknown>): string {
     return ""
 }
 
-function formatLspParams(params: Record<string, unknown>): string {
+export function formatLspParams(params: Record<string, unknown>): string {
     const op = (params.operation as string) || "lsp"
     const path = (params.filePath as string) || ""
     const line = params.line
@@ -55,7 +55,7 @@ function formatLspParams(params: Record<string, unknown>): string {
     return op
 }
 
-function formatQuestionParams(params: Record<string, unknown>): string {
+export function formatQuestionParams(params: Record<string, unknown>): string {
     const questions = params.questions
     if (!Array.isArray(questions) || questions.length === 0) return "question"
     const headers = questions
@@ -71,11 +71,11 @@ function formatQuestionParams(params: Record<string, unknown>): string {
     return `${count} question${plural}`
 }
 
-function formatFileParam(params: Record<string, unknown>): string {
+export function formatFileParam(params: Record<string, unknown>): string {
     return (params.filePath as string) || ""
 }
 
-function formatQueryParam(params: Record<string, unknown>): string {
+export function formatQueryParam(params: Record<string, unknown>): string {
     return params.query ? `"${params.query}"` : ""
 }
 
