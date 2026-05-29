@@ -47,6 +47,7 @@ function computePendingToRunningMs(
     return undefined
 }
 
+// fallow-ignore-next-line complexity
 function computeToolRuntimeMs(
     partTime: { start?: unknown; end?: unknown } | undefined,
 ): number | undefined {

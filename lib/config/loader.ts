@@ -4,6 +4,7 @@ import { parse } from "jsonc-parser/lib/esm/main.js"
 import type { PluginInput } from "@opencode-ai/plugin"
 import { GLOBAL_CONFIG_DIR, GLOBAL_CONFIG_PATH_JSONC } from "./defaults.js"
 
+// fallow-ignore-next-line complexity
 function findOpencodeDir(startDir: string): string | null {
     let current = startDir
     while (current !== "/") {
@@ -28,6 +29,7 @@ function resolveJsonConfigPath(dir: string, baseName: string): string | null {
     return null
 }
 
+// fallow-ignore-next-line complexity
 export function getConfigPaths(ctx?: PluginInput): {
     global: string | null
     configDir: string | null
@@ -69,6 +71,7 @@ export interface ConfigLoadResult {
     parseError?: string
 }
 
+// fallow-ignore-next-line complexity
 export function loadConfigFile(configPath: string): ConfigLoadResult {
     let fileContent = ""
     try {

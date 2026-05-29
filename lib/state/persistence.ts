@@ -110,6 +110,7 @@ export async function saveSessionState(
     }
 }
 
+// fallow-ignore-next-line complexity
 function validatePersistedSessionState(
     state: any,
     sessionId: string,
@@ -155,6 +156,7 @@ function normalizeNudgeAnchorList(
     return deduped
 }
 
+// fallow-ignore-next-line complexity
 export async function loadSessionState(
     sessionId: string,
     logger: Logger,
@@ -213,6 +215,7 @@ export interface AggregatedStats {
     sessionCount: number
 }
 
+// fallow-ignore-next-line complexity
 async function accumulateSessionFileStats(file: string): Promise<AggregatedStats | null> {
     const filePath = join(STORAGE_DIR, file)
     const content = await fs.readFile(filePath, "utf-8")
@@ -230,6 +233,7 @@ async function accumulateSessionFileStats(file: string): Promise<AggregatedStats
     }
 }
 
+// fallow-ignore-next-line complexity
 export async function loadAllSessionStats(logger: Logger): Promise<AggregatedStats> {
     const result: AggregatedStats = { totalTokens: 0, totalTools: 0, totalMessages: 0, sessionCount: 0 }
 

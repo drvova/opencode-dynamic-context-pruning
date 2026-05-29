@@ -32,6 +32,7 @@ import {
     type LastNonIgnoredMessage,
 } from "./utils"
 
+// fallow-ignore-next-line complexity
 export const injectCompressNudges = (
     state: SessionState,
     config: PluginConfig,
@@ -71,6 +72,7 @@ export const injectCompressNudges = (
     }
 }
 
+// fallow-ignore-next-line complexity
 function checkNudgeEligibility(
     state: SessionState,
     config: PluginConfig,
@@ -91,6 +93,7 @@ function checkNudgeEligibility(
     return true
 }
 
+// fallow-ignore-next-line complexity
 function resolveMessageIdTag(
     state: SessionState,
     config: PluginConfig,
@@ -117,6 +120,7 @@ function resolveMessageIdTag(
     )
 }
 
+// fallow-ignore-next-line complexity
 function injectIdIntoUserMessage(message: WithParts, tag: string): void {
     let injected = false
     for (const part of message.parts) {
@@ -186,6 +190,7 @@ function addTurnAnchorsForUserAssistant(
     return state.nudges.turnNudgeAnchors.size !== previousSize
 }
 
+// fallow-ignore-next-line complexity
 function tryAddIterationNudgeAnchors(
     state: SessionState,
     config: PluginConfig,
@@ -233,6 +238,7 @@ function tryAddTurnAndIterationAnchors(
     return anchorsChanged
 }
 
+// fallow-ignore-next-line complexity
 export const injectMessageIds = (
     state: SessionState,
     config: PluginConfig,

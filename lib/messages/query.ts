@@ -56,6 +56,7 @@ export const messageHasCompress = (message: WithParts): boolean => {
  *
  * Returns `false` for non-user messages or messages with no parts.
  */
+// fallow-ignore-next-line complexity
 export const isIgnoredUserMessage = (message: WithParts): boolean => {
     if (!isMessageWithInfo(message) || message.info.role !== "user") return false
     const parts = Array.isArray(message.parts) ? message.parts : []

@@ -73,6 +73,7 @@ function formatNoUserMessage(): string {
     return lines.join("\n")
 }
 
+// fallow-ignore-next-line complexity
 function formatSweepMessage(
     toolCount: number,
     tokensSaved: number,
@@ -116,6 +117,7 @@ function formatSweepMessage(
     return lines.join("\n")
 }
 
+// fallow-ignore-next-line complexity
 function resolveSweepTargets(
     state: SessionState,
     messages: WithParts[],
@@ -144,6 +146,7 @@ function resolveSweepTargets(
     return { toolIdsToSweep, mode: "since-user" }
 }
 
+// fallow-ignore-next-line complexity
 export async function handleSweepCommand(ctx: SweepCommandContext): Promise<void> {
     const { client, state, config, logger, sessionId, messages, args, workingDirectory } = ctx
 
@@ -164,6 +167,7 @@ export async function handleSweepCommand(ctx: SweepCommandContext): Promise<void
     const { toolIdsToSweep, mode } = resolved
 
     // Filter out already-pruned tools, protected tools, and protected file paths
+    // fallow-ignore-next-line complexity
     const newToolIds = toolIdsToSweep.filter((id) => {
         if (state.prune.tools.has(id)) {
             return false

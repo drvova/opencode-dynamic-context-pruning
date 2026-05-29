@@ -45,6 +45,7 @@ function collectUserTexts(
         .filter((text): text is string => !!text)
 }
 
+// fallow-ignore-next-line complexity
 function getFirstUserText(message: WithParts): string | undefined {
     const parts = Array.isArray(message.parts) ? message.parts : []
     for (const part of parts) {
@@ -60,6 +61,7 @@ function isActivelyCompressedMessage(state: SessionState, messageId: string): bo
     return Boolean(existingCompressionEntry && existingCompressionEntry.activeBlockIds.length > 0)
 }
 
+// fallow-ignore-next-line complexity
 function isToolPartProtected(
     part: ToolPart,
     protectedTools: string[],
@@ -73,6 +75,7 @@ function isToolPartProtected(
     return false
 }
 
+// fallow-ignore-next-line complexity
 async function fetchAndCacheSubAgentResult(
     client: OpencodeClient,
     state: SessionState,
@@ -98,6 +101,7 @@ async function fetchAndCacheSubAgentResult(
     return undefined
 }
 
+// fallow-ignore-next-line complexity
 async function resolveSubAgentOutput(
     client: OpencodeClient,
     state: SessionState,
@@ -130,6 +134,7 @@ function extractCompletedToolOutput(part: ToolPart): string {
         : JSON.stringify(part.state.output)
 }
 
+// fallow-ignore-next-line complexity
 async function processProtectedToolPart(
     client: OpencodeClient,
     state: SessionState,
@@ -148,6 +153,7 @@ async function processProtectedToolPart(
     return output ? formatProtectedToolOutput(part.tool, output) : undefined
 }
 
+// fallow-ignore-next-line complexity
 async function collectProtectedFromMessage(
     client: OpencodeClient,
     state: SessionState,

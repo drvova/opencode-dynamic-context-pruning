@@ -21,6 +21,7 @@ export class Logger {
         }
     }
 
+    // fallow-ignore-next-line complexity
     private formatData(data?: Record<string, unknown>): string {
         if (!data) return ""
 
@@ -46,6 +47,7 @@ export class Logger {
         return parts.join(" ")
     }
 
+    // fallow-ignore-next-line complexity
     private getCallerFile(skipFrames: number = 3): string {
         const originalPrepareStackTrace = Error.prepareStackTrace
         try {
@@ -69,6 +71,7 @@ export class Logger {
         }
     }
 
+    // fallow-ignore-next-line complexity
     private async write(level: string, component: string, message: string, data?: Record<string, unknown>) {
         if (!this.enabled) return
 

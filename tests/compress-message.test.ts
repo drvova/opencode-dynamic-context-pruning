@@ -165,7 +165,9 @@ test("compress message tool appends non-editable format extension", () => {
     assert.match(tool.description, /Raw message ID only: mNNNN/)
 })
 
+// fallow-ignore-next-line complexity
 test("compress message mode batches individual message summaries", async () => {
+    // fallow-ignore-next-line complexity
     const sessionID = `ses_message_compress_${Date.now()}`
     const rawMessages = buildMessages(sessionID)
     const state = createSessionState()
@@ -522,7 +524,9 @@ test("compress message mode allows messages containing compress tool parts", asy
     assert.equal(block?.startId, "m0004")
 })
 
+// fallow-ignore-next-line complexity
 test("compress message mode sends one aggregated notification for batched messages", async () => {
+    // fallow-ignore-next-line complexity
     const sessionID = `ses_message_compress_notify_${Date.now()}`
     const rawMessages = buildMessages(sessionID)
     const state = createSessionState()

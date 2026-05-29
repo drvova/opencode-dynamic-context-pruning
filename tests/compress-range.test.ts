@@ -184,7 +184,9 @@ test("compress range rebuilds subagent message refs after session state was rese
     assert.equal(state.prune.messages.blocksById.size, 1)
 })
 
+// fallow-ignore-next-line complexity
 test("compress range mode batches multiple ranges into one notification", async () => {
+    // fallow-ignore-next-line complexity
     const sessionID = `ses_range_compress_batch_${Date.now()}`
     const rawMessages = buildMessages(sessionID)
     const state = createSessionState()

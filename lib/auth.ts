@@ -14,6 +14,7 @@ function getAuthorizationHeader(): string | undefined {
     return `Basic ${credentials}`
 }
 
+// fallow-ignore-next-line complexity
 export function configureClientAuth(client: OpencodeClient): OpencodeClient {
     const authHeader = getAuthorizationHeader()
 

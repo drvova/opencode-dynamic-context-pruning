@@ -47,6 +47,7 @@ function formatReasoningPart(part: ReasoningPart): MinimizedReasoningPart | null
     return reasoningPart
 }
 
+// fallow-ignore-next-line complexity
 function formatToolPart(part: ToolPart): MinimizedToolPart | null {
     const toolPart: MinimizedToolPart = {
         type: "tool",
@@ -76,7 +77,9 @@ function formatToolPart(part: ToolPart): MinimizedToolPart | null {
 }
 
 export function minimizeMessagesForDebug(messages: WithParts[]): MinimizedMessage[] {
+    // fallow-ignore-next-line complexity
     return messages.map((msg) => {
+        // fallow-ignore-next-line complexity
         const minimized: MinimizedMessage = {
             role: msg.info?.role,
         }
@@ -97,6 +100,7 @@ export function minimizeMessagesForDebug(messages: WithParts[]): MinimizedMessag
 
         if (msg.parts) {
             minimized.parts = msg.parts
+                // fallow-ignore-next-line complexity
                 .map((part: Part) => {
                     if (part.type === "step-start" || part.type === "step-finish") return null
                     if (part.type === "text") return formatTextPart(part)

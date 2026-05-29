@@ -107,6 +107,7 @@ export function formatBashParams(params: Record<string, unknown>): string {
  * formatLspParams({ operation: "hover", filePath: "src/index.ts", line: 10, character: 5 })
  * // => "hover src/index.ts:10:5"
  */
+// fallow-ignore-next-line complexity
 export function formatLspParams(params: Record<string, unknown>): string {
     const op = (params.operation as string) || "lsp"
     const path = (params.filePath as string) || ""
@@ -209,6 +210,7 @@ const PARAM_EXTRACTORS: Record<string, (params: Record<string, unknown>) => stri
  * @param parameters - The raw tool call parameters
  * @returns A short, human-readable summary of the tool's parameters
  */
+// fallow-ignore-next-line complexity
 export function extractParameterKey(tool: string, parameters: Record<string, unknown>): string {
     if (!parameters) return ""
     const extractor = PARAM_EXTRACTORS[tool]

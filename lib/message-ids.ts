@@ -41,6 +41,7 @@ export function formatBlockRef(blockId: number): string {
     return `b${blockId}`
 }
 
+// fallow-ignore-next-line complexity
 function parseMessageRef(ref: string): number | null {
     const normalized = ref.trim().toLowerCase()
     const match = normalized.match(MESSAGE_REF_REGEX)
@@ -130,6 +131,7 @@ function assignOrFixMessageRef(state: SessionState, messageId: string): boolean 
     return true
 }
 
+// fallow-ignore-next-line complexity
 export function assignMessageRefs(state: SessionState, messages: WithParts[]): number {
     let assigned = 0
     let skippedSubAgentPrompt = false

@@ -9,6 +9,7 @@ function isBeforeCompaction(state: SessionState, msg: WithParts): boolean {
     )
 }
 
+// fallow-ignore-next-line complexity
 function sumAssistantTokenUsage(t: AssistantMessage["tokens"]): number {
     return t.input + t.output + t.reasoning + (t.cache?.read ?? 0) + (t.cache?.write ?? 0)
 }

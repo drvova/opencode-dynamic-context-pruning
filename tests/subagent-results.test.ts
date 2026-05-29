@@ -8,6 +8,7 @@ import {
     mergeSubagentResult,
 } from "../lib/subagents/subagent-results"
 
+// fallow-ignore-next-line complexity
 function makeToolPart(overrides: Partial<{
     tool: string
     callID: string

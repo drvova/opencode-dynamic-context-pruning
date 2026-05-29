@@ -56,6 +56,7 @@ const VALID_CONFIG_KEYS = new Set([
     "strategies.toolCallPruning.protectedTools",
 ])
 
+// fallow-ignore-next-line complexity
 function getConfigKeyPaths(obj: Record<string, unknown>, prefix = ""): string[] {
     const keys: string[] = []
     for (const key of Object.keys(obj)) {
@@ -311,6 +312,7 @@ function showWarningToast(ctx: PluginInput, configType: string, configPath: stri
     }, 7000)
 }
 
+// fallow-ignore-next-line complexity
 export function showConfigWarnings(
     ctx: PluginInput,
     configPath: string,

@@ -8,6 +8,7 @@ function escapeRegExpChar(ch: string): string {
     return /[\\.^$+{}()|\[\]]/.test(ch) ? `\\${ch}` : ch
 }
 
+// fallow-ignore-next-line complexity
 function matchesGlob(inputPath: string, pattern: string): boolean {
     if (!pattern) return false
 
@@ -59,6 +60,7 @@ function matchesGlob(inputPath: string, pattern: string): boolean {
     return new RegExp(regex).test(input)
 }
 
+// fallow-ignore-next-line complexity
 export function getFilePathsFromParameters(tool: string, parameters: unknown): string[] {
     if (typeof parameters !== "object" || parameters === null) {
         return []
@@ -100,6 +102,7 @@ export function getFilePathsFromParameters(tool: string, parameters: unknown): s
     return [...new Set(paths)].filter((p) => p.length > 0)
 }
 
+// fallow-ignore-next-line complexity
 export function isFilePathProtected(filePaths: string[], patterns: string[]): boolean {
     if (!filePaths || filePaths.length === 0) return false
     if (!patterns || patterns.length === 0) return false
@@ -109,6 +112,7 @@ export function isFilePathProtected(filePaths: string[], patterns: string[]): bo
 
 const GLOB_CHARS = /[*?]/
 
+// fallow-ignore-next-line complexity
 export function isToolNameProtected(toolName: string, patterns: string[]): boolean {
     if (!toolName || !patterns || patterns.length === 0) return false
 

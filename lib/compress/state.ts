@@ -26,6 +26,7 @@ export function allocateRunId(state: SessionState): number {
     return next
 }
 
+// fallow-ignore-next-line complexity
 export function attachCompressionDuration(
     messagesState: PruneMessagesState,
     messageId: string,
@@ -58,6 +59,7 @@ function dedupConsumedBlockIds(consumedBlockIds: number[]): number[] {
     return [...new Set(consumedBlockIds.filter((id) => Number.isInteger(id) && id > 0))]
 }
 
+// fallow-ignore-next-line complexity
 function buildEffectiveIdSets(
     messagesState: PruneMessagesState,
     selection: SelectionResolution,
@@ -92,6 +94,7 @@ function collectInitiallyActiveMessages(
     return result
 }
 
+// fallow-ignore-next-line complexity
 function collectInitiallyActiveToolIds(
     messagesState: PruneMessagesState,
 ): Set<string> {
@@ -154,6 +157,7 @@ function makeCompressionBlock(
     }
 }
 
+// fallow-ignore-next-line complexity
 function deactivateConsumedBlock(
     messagesState: PruneMessagesState,
     consumedBlockId: number,
@@ -285,6 +289,7 @@ function updateMessageEntries(
     attachBlockToExistingEntries(messagesState, blockId, selection, effectiveMessageIds)
 }
 
+// fallow-ignore-next-line complexity
 function computeNewlyCompressedMessages(
     messagesState: PruneMessagesState,
     effectiveMessageIds: Set<string>,

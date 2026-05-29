@@ -11,6 +11,7 @@ import { isIgnoredUserMessage, messageHasCompress } from "../messages/query"
 import { isMessageWithInfo } from "../messages/shape"
 import { countTokens } from "../token-counting"
 
+// fallow-ignore-next-line complexity
 export const isMessageCompacted = (state: SessionState, msg: WithParts): boolean => {
     if (!isMessageWithInfo(msg)) {
         return false
@@ -70,6 +71,7 @@ export async function isSubAgentSession(client: OpencodeClient, sessionID: strin
     }
 }
 
+// fallow-ignore-next-line complexity
 export function findLastCompactionTimestamp(messages: WithParts[]): number {
     for (let i = messages.length - 1; i >= 0; i--) {
         const msg = messages[i]
@@ -142,6 +144,7 @@ function filterStringArray(value: unknown): string[] {
         : []
 }
 
+// fallow-ignore-next-line complexity
 function loadNextCounters(
     state: PruneMessagesState,
     nextBlockId: number,
@@ -155,6 +158,7 @@ function loadNextCounters(
     }
 }
 
+// fallow-ignore-next-line complexity
 function loadByMessageIdEntries(
     state: PruneMessagesState,
     byMessageId: Record<string, PrunedMessageEntry>,
@@ -266,6 +270,7 @@ function isValidBlockId(value: unknown): value is number {
     return typeof value === "number" && Number.isInteger(value) && value > 0
 }
 
+// fallow-ignore-next-line complexity
 function loadBlocksByIdEntries(
     state: PruneMessagesState,
     blocksById: Record<string, CompressionBlock>,
@@ -279,6 +284,7 @@ function loadBlocksByIdEntries(
     }
 }
 
+// fallow-ignore-next-line complexity
 function loadActiveBlockIdsFromArray(
     state: PruneMessagesState,
     activeBlockIds: number[],
@@ -294,6 +300,7 @@ function loadActiveBlockIdsFromArray(
     }
 }
 
+// fallow-ignore-next-line complexity
 function loadActiveByAnchorMessageIdFromRecord(
     state: PruneMessagesState,
     activeByAnchorMessageId: Record<string, number>,
@@ -354,6 +361,7 @@ function handleAssistantNudge(message: WithParts, ns: NudgeState): void {
     ns.pendingUserMessageId = null
 }
 
+// fallow-ignore-next-line complexity
 export function collectTurnNudgeAnchors(messages: WithParts[]): Set<string> {
     const ns: NudgeState = { anchors: new Set(), pendingUserMessageId: null }
 

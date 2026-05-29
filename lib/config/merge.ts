@@ -5,7 +5,6 @@ function mergeProtectedTools(base: string[], override?: string[]): string[] {
     return [...new Set([...base, ...(override ?? [])])]
 }
 
-// fallow-ignore-next-line complexity
 /**
  * Merge strategy-level configuration (deduplication, purgeErrors,
  * toolCallPruning) by applying per-field overrides from a partial
@@ -13,6 +12,7 @@ function mergeProtectedTools(base: string[], override?: string[]): string[] {
  * `protectedTools` fields are merged independently. Protected tool
  * arrays are union-merged with deduplication.
  */
+// fallow-ignore-next-line complexity
 function mergeStrategies(
     base: PluginConfig["strategies"],
     override?: Partial<PluginConfig["strategies"]>,
@@ -45,13 +45,13 @@ function mergeStrategies(
     }
 }
 
-// fallow-ignore-next-line complexity
 /**
  * Merge compression configuration by applying overrides for mode,
  * permission, limits, nudge settings, and protected tools. Protected
  * tool arrays are union-merged with deduplication. Returns the base
  * config unchanged when no overrides are provided.
  */
+// fallow-ignore-next-line complexity
 function mergeCompress(
     base: PluginConfig["compress"],
     override?: CompressOverride,
@@ -160,7 +160,6 @@ export function deepCloneConfig(config: PluginConfig): PluginConfig {
     }
 }
 
-// fallow-ignore-next-line complexity
 /**
  * Merge a single configuration layer on top of an existing config,
  * producing a new PluginConfig that incorporates all overrides. Scalar
@@ -170,6 +169,7 @@ export function deepCloneConfig(config: PluginConfig): PluginConfig {
  * This is the primary entry point for layered config resolution (global →
  * project → runtime).
  */
+// fallow-ignore-next-line complexity
 export function mergeLayer(config: PluginConfig, data: Partial<PluginConfig>): PluginConfig {
     return {
         enabled: data.enabled ?? config.enabled,

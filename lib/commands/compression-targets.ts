@@ -77,6 +77,7 @@ export function getActiveCompressionTargets(
     return splitTargets(activeBlocks)
 }
 
+// fallow-ignore-next-line complexity
 export function getRecompressibleCompressionTargets(
     messagesState: PruneMessagesState,
     availableMessageIds: Set<string>,

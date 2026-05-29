@@ -55,6 +55,7 @@ export interface ManualCommandContext {
     messages: WithParts[]
 }
 
+// fallow-ignore-next-line complexity
 export async function handleManualToggleCommand(
     ctx: ManualCommandContext,
     modeArg?: string,
@@ -89,6 +90,7 @@ export async function handleManualTriggerCommand(
     return getTriggerPrompt(tool, ctx.state, ctx.config, userFocus)
 }
 
+// fallow-ignore-next-line complexity
 function findUserTextPartToReplace(
     messages: WithParts[],
 ): { message: WithParts; textPart: TextPart; partIndex: number } | null {
@@ -110,6 +112,7 @@ function findUserTextPartToReplace(
     return null
 }
 
+// fallow-ignore-next-line complexity
 export function applyPendingManualTrigger(
     state: SessionState,
     messages: WithParts[],

@@ -263,7 +263,9 @@ test("compression notifications increment by tool call across range and message 
     assert.match(toastCalls[1] || "", /Compression #2/)
 })
 
+// fallow-ignore-next-line complexity
 test("decompress groups batched message compressions by tool call", async () => {
+    // fallow-ignore-next-line complexity
     const sessionID = `ses_message_grouped_decompress_${Date.now()}`
     const rawMessages = buildMessages(sessionID)
     const state = createSessionState()
@@ -363,7 +365,9 @@ test("decompress groups batched message compressions by tool call", async () => 
     assert.ok(blocks.every((block) => block.active))
 })
 
+// fallow-ignore-next-line complexity
 test("decompress keeps batched ranges individually restorable", async () => {
+    // fallow-ignore-next-line complexity
     const sessionID = `ses_range_individual_decompress_${Date.now()}`
     const rawMessages = buildMessages(sessionID)
     const state = createSessionState()

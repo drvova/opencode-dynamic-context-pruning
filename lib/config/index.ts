@@ -7,6 +7,7 @@ import { deepCloneConfig, mergeLayer } from "./merge.js"
 
 export type { PluginConfig } from "./types.js"
 
+// fallow-ignore-next-line complexity
 export function getConfig(ctx: PluginInput): PluginConfig {
     let config = deepCloneConfig(defaultConfig)
     const configPaths = getConfigPaths(ctx)

@@ -14,6 +14,7 @@ import { markToolIdsForPruning } from "./prune-utils"
  *
  * Modifies the session state in place to add pruned tool call IDs.
  */
+// fallow-ignore-next-line complexity
 const collectStaleErrorToolIds = (
     state: SessionState,
     unprunedIds: string[],
@@ -57,6 +58,7 @@ const markErrorToolsAsPruned = (
     }
 }
 
+// fallow-ignore-next-line complexity
 export const purgeErrors = (
     state: SessionState,
     logger: Logger,

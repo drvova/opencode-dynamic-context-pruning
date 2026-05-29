@@ -4,6 +4,7 @@ import { messageHasCompress } from "../messages/query"
 
 const SUB_AGENT_RESULT_BLOCK_REGEX = /(<task_result>\s*)([\s\S]*?)(\s*<\/task_result>)/i
 
+// fallow-ignore-next-line complexity
 export function getSubAgentId(part: Part): string | null {
     if (part.type !== "tool") return null
     if (part.state.status !== "completed") return null

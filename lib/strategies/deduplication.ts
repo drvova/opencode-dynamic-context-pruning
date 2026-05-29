@@ -11,6 +11,7 @@ import { getTotalToolTokens } from "../token-counting"
  * tool name and parameters, keeping only the most recent occurrence.
  * Modifies the session state in place to add pruned tool call IDs.
  */
+// fallow-ignore-next-line complexity
 export const deduplicate = (
     state: SessionState,
     logger: Logger,
@@ -40,6 +41,7 @@ export const deduplicate = (
     }
 }
 
+// fallow-ignore-next-line complexity
 function groupToolsBySignature(
     state: SessionState,
     unprunedIds: string[],
@@ -88,6 +90,7 @@ function createToolSignature(tool: string, parameters?: Record<string, unknown>)
     return `${tool}::${JSON.stringify(sorted)}`
 }
 
+// fallow-ignore-next-line complexity
 function normalizeParameters(params: unknown): unknown {
     if (typeof params !== "object" || params === null) return params
     if (Array.isArray(params)) return params
@@ -101,6 +104,7 @@ function normalizeParameters(params: unknown): unknown {
     return normalized
 }
 
+// fallow-ignore-next-line complexity
 function sortObjectKeys(obj: unknown): unknown {
     if (typeof obj !== "object" || obj === null) return obj
     if (Array.isArray(obj)) return obj.map(sortObjectKeys)

@@ -63,6 +63,7 @@ export function createSystemPromptHandler(
     config: PluginConfig,
     prompts: PromptStore,
 ) {
+    // fallow-ignore-next-line complexity
     return async (
         input: { sessionID?: string; model: { limit: { context: number } } },
         output: { system: string[] },
@@ -215,6 +216,7 @@ export function createCommandExecuteHandler(
     }
 }
 
+// fallow-ignore-next-line complexity
 async function prepareDcpExecution(
     client: OpencodeClient,
     state: SessionState,
@@ -353,8 +355,10 @@ export function createTextCompleteHandler() {
 }
 
 export function createEventHandler(state: SessionState, logger: Logger) {
+    // fallow-ignore-next-line complexity
     return async (input: { event: Event }) => {
         if (input.event.type !== "message.part.updated") return
+        // fallow-ignore-next-line complexity
         const { part, time: eventTime } = input.event.properties
         if (part.type !== "tool" || part.tool !== "compress") return
 

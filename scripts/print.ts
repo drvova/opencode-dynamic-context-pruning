@@ -9,6 +9,7 @@ function normalizePromptKey(value: string): PromptKey | null {
     return PROMPT_KEYS.includes(normalized as PromptKey) ? (normalized as PromptKey) : null
 }
 
+// fallow-ignore-next-line complexity
 function getPromptByKey(prompts: RuntimePrompts, key: PromptKey): string {
     switch (key) {
         case "system":

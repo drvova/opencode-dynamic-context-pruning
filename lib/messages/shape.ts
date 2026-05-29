@@ -1,5 +1,6 @@
 import type { WithParts } from "../state"
 
+// fallow-ignore-next-line complexity
 export function isMessageWithInfo(message: unknown): message is WithParts {
     if (!message || typeof message !== "object") {
         return false

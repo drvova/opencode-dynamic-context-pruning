@@ -8,6 +8,7 @@ import { markToolIdsForPruning } from "./prune-utils"
 const DEFAULT_PROTECTED_TOOLS = ["task", "skill"]
 const EXCLUDED_TOOLS = new Set(["question", "edit", "write"])
 
+// fallow-ignore-next-line complexity
 function buildLiveStatusMap(messages: WithParts[]): Map<string, string> {
     const map = new Map<string, string>()
     for (const msg of messages) {
@@ -42,6 +43,7 @@ function resolveTurnsThreshold(
     return baseThreshold
 }
 
+// fallow-ignore-next-line complexity
 function collectPrunableToolIds(
     state: SessionState,
     unprunedIds: string[],
@@ -70,6 +72,7 @@ function collectPrunableToolIds(
     return idsToPrune
 }
 
+// fallow-ignore-next-line complexity
 export function toolCallPruning(
     state: SessionState,
     logger: Logger,

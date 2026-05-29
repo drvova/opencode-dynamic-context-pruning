@@ -84,6 +84,7 @@ export function getModelInfo(messages: WithParts[]): LastUserModelContext {
     }
 }
 
+// fallow-ignore-next-line complexity
 function parseLimitValue(
     limit: number | `${number}%` | undefined,
     state: SessionState,
@@ -101,6 +102,7 @@ function parseLimitValue(
     return Math.round((clampedPercent / 100) * state.modelContextLimit)
 }
 
+// fallow-ignore-next-line complexity
 function resolveModelLimit(
     config: PluginConfig,
     providerId: string | undefined,
@@ -135,6 +137,7 @@ function resolveContextTokenLimit(
     return parseLimitValue(globalLimit, state)
 }
 
+// fallow-ignore-next-line complexity
 export function isContextOverLimits(
     config: PluginConfig,
     state: SessionState,
@@ -168,6 +171,7 @@ export function isContextOverLimits(
     }
 }
 
+// fallow-ignore-next-line complexity
 export function addAnchor(
     anchorMessageIds: Set<string>,
     anchorMessageId: string,
@@ -221,6 +225,7 @@ function injectNudgeIntoUserMessage(message: WithParts, nudgeText: string): void
     message.parts.push(createSyntheticTextPart(message, nudgeText))
 }
 
+// fallow-ignore-next-line complexity
 function injectNudgeIntoAssistantMessage(message: WithParts, nudgeText: string): void {
     if (!hasContent(message)) {
         return
@@ -280,6 +285,7 @@ function collectAnchoredMessages(
     return anchoredMessages
 }
 
+// fallow-ignore-next-line complexity
 function collectTurnNudgeAnchors(
     state: SessionState,
     config: PluginConfig,

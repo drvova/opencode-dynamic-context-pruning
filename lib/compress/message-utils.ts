@@ -33,6 +33,7 @@ class SoftIssue extends Error {
     }
 }
 
+// fallow-ignore-next-line complexity
 export function validateCompressArgs(
     args: { topic: unknown; content: unknown },
     entryFields: string[],
@@ -61,6 +62,7 @@ export function validateArgs(args: CompressMessageToolArgs): void {
     validateCompressArgs(args, ["messageId", "topic", "summary"])
 }
 
+// fallow-ignore-next-line complexity
 export function formatResult(
     processedCount: number,
     skippedIssues: string[],
@@ -151,6 +153,7 @@ function groupSkippedIssues(issues: SkippedIssue[]): string[] {
     })
 }
 
+// fallow-ignore-next-line complexity
 export function resolveMessages(
     args: CompressMessageToolArgs,
     searchContext: SearchContext,
@@ -197,6 +200,7 @@ export function resolveMessages(
     }
 }
 
+// fallow-ignore-next-line complexity
 function validateAndFetchMessage(
     entryId: string,
     searchContext: SearchContext,

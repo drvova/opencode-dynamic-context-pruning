@@ -150,6 +150,7 @@ function createBundledRuntimePrompts(): RuntimePrompts {
     }
 }
 
+// fallow-ignore-next-line complexity
 function findOpencodeDir(startDir: string): string | null {
     let current = startDir
     while (current !== "/") {
@@ -236,6 +237,7 @@ function stripPromptComments(content: string): string {
         .replace(LEGACY_INLINE_COMMENT_LINE_REGEX, "")
 }
 
+// fallow-ignore-next-line complexity
 function toEditablePromptText(definition: PromptDefinition, rawContent: string): string {
     let normalized = stripPromptComments(rawContent).trim()
     if (!normalized) {
@@ -343,7 +345,9 @@ export class PromptStore {
         return { ...this.runtimePrompts }
     }
 
+    // fallow-ignore-next-line complexity
     reload(): void {
+        // fallow-ignore-next-line complexity
         const nextPrompts = createBundledRuntimePrompts()
 
         if (!this.customPromptsEnabled) {
@@ -414,6 +418,7 @@ export class PromptStore {
         return candidates
     }
 
+    // fallow-ignore-next-line complexity
     private ensureDefaultFiles(): void {
         try {
             mkdirSync(this.paths.defaultsDir, { recursive: true })

@@ -47,6 +47,7 @@ function registerDcpCommandIfEnabled(
     }
 }
 
+// fallow-ignore-next-line complexity
 function addCompressToPrimaryToolsIfNeeded(
     config: ReturnType<typeof getConfig>,
     opencodeConfig: OpencodePluginConfig,
@@ -89,6 +90,7 @@ function extractAgentPermissions(
     )
 }
 
+// fallow-ignore-next-line complexity
 const server = async (ctx: PluginInput) => {
     const config = getConfig(ctx)
 

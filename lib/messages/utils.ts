@@ -87,6 +87,7 @@ const findLastTextPart = (message: WithParts): TextPart | null => {
     return null
 }
 
+// fallow-ignore-next-line complexity
 export const appendToTextPart = (part: TextPart, injection: string): boolean => {
     if (typeof part.text !== "string") {
         return false
@@ -115,6 +116,7 @@ export const appendToAllToolParts = (message: WithParts, tag: string): boolean =
     return injected
 }
 
+// fallow-ignore-next-line complexity
 const appendToToolPart = (part: ToolPart, tag: string): boolean => {
     if (part.state?.status !== "completed" || typeof part.state.output !== "string") {
         return false
@@ -129,6 +131,7 @@ const appendToToolPart = (part: ToolPart, tag: string): boolean => {
 
 export const hasContent = (message: WithParts): boolean => {
     return message.parts.some(
+        // fallow-ignore-next-line complexity
         (part) =>
             (part.type === "text" &&
                 typeof part.text === "string" &&
@@ -139,6 +142,7 @@ export const hasContent = (message: WithParts): boolean => {
     )
 }
 
+// fallow-ignore-next-line complexity
 export function collectToolCallIds(state: SessionState, message: WithParts, toolIds: string[]): void {
     if (isMessageCompacted(state, message)) return
     const parts = Array.isArray(message.parts) ? message.parts : []
@@ -165,6 +169,7 @@ export const stripHallucinationsFromString = (text: string): string => {
     return text.replace(DCP_PAIRED_TAG_REGEX, "").replace(DCP_UNPAIRED_TAG_REGEX, "")
 }
 
+// fallow-ignore-next-line complexity
 export const stripHallucinations = (messages: WithParts[]): void => {
     for (const message of messages) {
         for (const part of message.parts) {

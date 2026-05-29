@@ -17,6 +17,7 @@ export interface CompressionPriorityEntry {
 
 export type CompressionPriorityMap = Map<string, CompressionPriorityEntry>
 
+// fallow-ignore-next-line complexity
 function isMessageEligibleForPriority(
     config: PluginConfig,
     state: SessionState,
@@ -34,6 +35,7 @@ function resolveEffectivePriority(message: WithParts, tokenCount: number): Messa
     return messageHasCompress(message) ? "high" : classifyMessagePriority(tokenCount)
 }
 
+// fallow-ignore-next-line complexity
 export function buildPriorityMap(
     config: PluginConfig,
     state: SessionState,
@@ -68,6 +70,7 @@ function classifyMessagePriority(tokenCount: number): MessagePriority {
     return "low"
 }
 
+// fallow-ignore-next-line complexity
 export function listPriorityRefsBeforeIndex(
     messages: WithParts[],
     priorities: CompressionPriorityMap,

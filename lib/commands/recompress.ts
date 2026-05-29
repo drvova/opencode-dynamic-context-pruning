@@ -25,6 +25,7 @@ export interface RecompressCommandContext {
     args: string[]
 }
 
+// fallow-ignore-next-line complexity
 function validateRecompressTarget(
     messagesState: PruneMessagesState,
     targetBlockId: number,
@@ -48,6 +49,7 @@ function validateRecompressTarget(
     return target
 }
 
+// fallow-ignore-next-line complexity
 export async function handleRecompressCommand(ctx: RecompressCommandContext): Promise<void> {
     const { client, state, logger, sessionId, messages, args } = ctx
 

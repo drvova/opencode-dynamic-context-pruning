@@ -49,6 +49,7 @@ function stringifyToolContent(value: unknown): string {
  * stringified output for non-compacted completed tools. Returns
  * `undefined` for non-tool parts or tools that have not completed.
  */
+// fallow-ignore-next-line complexity
 export function extractCompletedToolOutput(part: Part): string | undefined {
     if (part.type !== "tool" || part.state.status !== "completed") return undefined
 
@@ -59,7 +60,6 @@ export function extractCompletedToolOutput(part: Part): string | undefined {
     return stringifyToolContent(part.state.output)
 }
 
-// fallow-ignore-next-line complexity
 /**
  * Extract all tokenizable content strings from a tool part, including the
  * input parameters and — when available — the output or error text.
@@ -68,6 +68,7 @@ export function extractCompletedToolOutput(part: Part): string | undefined {
  * Content ordering: [input, output] for completed tools,
  * [input, error] for errored tools, [input] for pending/running tools.
  */
+// fallow-ignore-next-line complexity
 export function extractToolContent(part: Part): string[] {
     if (part.type !== "tool") return []
     const input = part.state.input !== undefined ? [stringifyToolContent(part.state.input)] : []

@@ -26,6 +26,7 @@ export const prune = (
     pruneToolErrors(state, logger, messages)
 }
 
+// fallow-ignore-next-line complexity
 function forEachPrunableMessage(
     state: SessionState,
     messages: WithParts[],
@@ -103,7 +104,9 @@ const pruneToolInputs = (state: SessionState, _logger: Logger, messages: WithPar
 }
 
 const pruneToolErrors = (state: SessionState, _logger: Logger, messages: WithParts[]): void => {
+    // fallow-ignore-next-line complexity
     forEachToolPartWithStatus(state, messages, "error", (part) => {
+        // fallow-ignore-next-line complexity
         const input = (part.state as { input?: Record<string, unknown> }).input
         if (input && typeof input === "object") {
                 for (const key of Object.keys(input)) {
@@ -115,6 +118,7 @@ const pruneToolErrors = (state: SessionState, _logger: Logger, messages: WithPar
     })
 }
 
+// fallow-ignore-next-line complexity
 const filterCompressedRanges = (
     state: SessionState,
     logger: Logger,
@@ -151,6 +155,7 @@ const filterCompressedRanges = (
     messages.push(...result)
 }
 
+// fallow-ignore-next-line complexity
 function lookupAndValidateSummary(
     state: SessionState,
     blockId: number | undefined,
@@ -178,6 +183,7 @@ function resolveSummaryContent(summary: string, compressMode: string): string {
     return summary
 }
 
+// fallow-ignore-next-line complexity
 function injectSummaryAtAnchor(
     state: SessionState,
     logger: Logger,

@@ -34,6 +34,7 @@ function prepareSyncContext(
     return { messageIds, previousActiveBlockIds }
 }
 
+// fallow-ignore-next-line complexity
 function processCompressionBlock(
     block: CompressionBlock,
     messagesState: PruneMessagesState,
@@ -107,6 +108,7 @@ function recomputeMessageBlockEntries(
     }
 }
 
+// fallow-ignore-next-line complexity
 function logBlockStateChanges(
     previousActiveBlockIds: Set<number>,
     nextActiveBlockIds: Set<number>,

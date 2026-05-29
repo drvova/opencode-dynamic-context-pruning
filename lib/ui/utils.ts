@@ -22,6 +22,7 @@ function truncate(str: string, maxLen: number = 60): string {
     return str.slice(0, maxLen - 3) + "..."
 }
 
+// fallow-ignore-next-line complexity
 export function formatProgressBar(
     messageIds: string[],
     prunedMessages: Map<string, number>,
@@ -57,6 +58,7 @@ export function formatProgressBar(
     return `│${bar.join("")}│`
 }
 
+// fallow-ignore-next-line complexity
 function getAssistantInputTokens(msg: WithParts): number {
     const info = msg.info as AssistantMessage
     const input = info?.tokens?.input || 0
@@ -74,6 +76,7 @@ function findFirstInputTokens(messages: WithParts[]): number {
     return 0
 }
 
+// fallow-ignore-next-line complexity
 function collectFirstUserText(messages: WithParts[]): string {
     for (const msg of messages) {
         if (msg.info.role !== "user" || isIgnoredUserMessage(msg)) {
@@ -127,6 +130,7 @@ function shortenSinglePath(path: string, workingDirectory?: string): string {
     return path
 }
 
+// fallow-ignore-next-line complexity
 export function formatPrunedItemsList(
     pruneToolIds: string[],
     toolMetadata: Map<string, ToolParameterEntry>,

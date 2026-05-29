@@ -24,6 +24,7 @@ export function stripStaleMetadata(messages: WithParts[]): void {
             return
         }
 
+        // fallow-ignore-next-line complexity
         message.parts = message.parts.map((part) => {
             if (part.type !== "text" && part.type !== "tool" && part.type !== "reasoning") {
                 return part

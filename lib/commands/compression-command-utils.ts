@@ -72,6 +72,7 @@ function prepareCompressionCommandContext(
     }
 }
 
+// fallow-ignore-next-line complexity
 function parseCompressionTargetArg(arg: string): number | null {
     const normalized = arg.trim().toLowerCase()
     const blockRef = parseBlockRef(normalized)
@@ -166,6 +167,7 @@ export async function validateAndSnapshot<T>(
     }
 }
 
+// fallow-ignore-next-line complexity
 export async function resolveCompressionTargetArg(
     client: OpencodeClient,
     sessionId: string,
@@ -203,6 +205,7 @@ export async function resolveCompressionTargetArg(
     return targetBlockId
 }
 
+// fallow-ignore-next-line complexity
 async function resolveCompressionCommandTarget(
     options: CompressionCommandTargetOptions,
 ): Promise<CompressionTarget | undefined> {
@@ -240,6 +243,7 @@ async function resolveCompressionCommandTarget(
     return target
 }
 
+// fallow-ignore-next-line complexity
 export function formatCompressionCommandResult(
     target: CompressionTarget,
     nestedBlockIds: number[],

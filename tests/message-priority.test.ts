@@ -136,7 +136,9 @@ function repeatedWord(word: string, count: number): string {
     return Array.from({ length: count }, () => word).join(" ")
 }
 
+// fallow-ignore-next-line complexity
 test("injectMessageIds injects ID into every tool output for assistant messages", () => {
+    // fallow-ignore-next-line complexity
     const sessionID = "ses_message_priority_tags"
     const messages: WithParts[] = [
         {

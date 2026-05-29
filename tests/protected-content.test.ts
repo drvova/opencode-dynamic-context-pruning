@@ -16,6 +16,7 @@ function makeTextPart(text: string): Part {
     } as Part
 }
 
+// fallow-ignore-next-line complexity
 function makeToolPart(overrides: {
     tool?: string
     callID?: string

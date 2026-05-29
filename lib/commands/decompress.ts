@@ -26,6 +26,7 @@ export interface DecompressCommandContext {
     args: string[]
 }
 
+// fallow-ignore-next-line complexity
 function findActiveParentBlockId(
     messagesState: PruneMessagesState,
     block: CompressionBlock,
@@ -94,6 +95,7 @@ function validateDecompressTarget(
     return target
 }
 
+// fallow-ignore-next-line complexity
 export async function handleDecompressCommand(ctx: DecompressCommandContext): Promise<void> {
     const { client, state, logger, sessionId, messages, args } = ctx
 

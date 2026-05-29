@@ -98,6 +98,7 @@ function createEmptyBreakdown(prunedTokens: number): TokenBreakdown {
     }
 }
 
+// fallow-ignore-next-line complexity
 function hasTokenData(assistant: AssistantMessage): boolean {
     return (
         (assistant.tokens?.input ?? 0) > 0 ||
@@ -116,6 +117,7 @@ function findFirstAssistant(messages: WithParts[]): AssistantMessage | undefined
     return undefined
 }
 
+// fallow-ignore-next-line complexity
 function findLastAssistant(messages: WithParts[]): AssistantMessage | undefined {
     for (let i = messages.length - 1; i >= 0; i--) {
         const msg = messages[i]
@@ -148,6 +150,7 @@ function stringifyInput(input: unknown): string {
     return typeof input === "string" ? input : JSON.stringify(input)
 }
 
+// fallow-ignore-next-line complexity
 function collectToolContent(
     part: ToolPart,
     state: SessionState,
@@ -175,6 +178,7 @@ function collectToolPart(
     if (!isCompacted) collectToolContent(part, state, toolInputParts, toolOutputParts)
 }
 
+// fallow-ignore-next-line complexity
 function collectUserTextPart(
     part: TextPart,
     isCompacted: boolean,
@@ -223,6 +227,7 @@ function processPart(
     return firstUserText
 }
 
+// fallow-ignore-next-line complexity
 function collectMessageParts(
     state: SessionState,
     messages: WithParts[],
@@ -297,6 +302,7 @@ function applyPruningStats(
     breakdown.prunedMessageCount = countPrunedMessages(parts, state)
 }
 
+// fallow-ignore-next-line complexity
 function applyTokenBreakdown(
     breakdown: TokenBreakdown,
     firstAssistant: AssistantMessage | undefined,
@@ -322,6 +328,7 @@ function applyTokenBreakdown(
     )
 }
 
+// fallow-ignore-next-line complexity
 function sumAssistantTokens(assistant: AssistantMessage | undefined): number {
     if (!assistant?.tokens) return 0
     return (

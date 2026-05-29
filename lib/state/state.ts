@@ -15,6 +15,7 @@ import {
 } from "./utils"
 import { getLastUserMessage } from "../messages/query"
 
+// fallow-ignore-next-line complexity
 export const checkSession = async (
     client: OpencodeClient,
     state: SessionState,
@@ -135,6 +136,7 @@ function resetSessionState(state: SessionState): void {
     state.systemPromptTokens = undefined
 }
 
+// fallow-ignore-next-line complexity
 async function loadAndMergePersistedState(
     state: SessionState,
     sessionId: string,

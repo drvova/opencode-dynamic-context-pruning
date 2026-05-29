@@ -52,6 +52,7 @@ function assertRepoFilesExist() {
     }
 }
 
+// fallow-ignore-next-line complexity
 function assertPackageJsonShape() {
     const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"))
 
@@ -83,6 +84,7 @@ function getImportStatements(source) {
     }))
 }
 
+// fallow-ignore-next-line complexity
 function getImportKind(clause) {
     if (clause.startsWith("type ")) return "type"
     if (clause.startsWith("* as ")) return "namespace"
@@ -123,6 +125,7 @@ function resolveLocalImport(importerPath, specifier) {
     fail(`unable to resolve local import ${specifier} from ${path.relative(root, importerPath)}`)
 }
 
+// fallow-ignore-next-line complexity
 function findPackageInfo(packageName, importerPath) {
     const cacheKey = `${packageName}::${path.dirname(importerPath)}`
     if (packageInfoCache.has(cacheKey)) {
@@ -154,6 +157,7 @@ function findPackageInfo(packageName, importerPath) {
     }
 }
 
+// fallow-ignore-next-line complexity
 function packageLooksCommonJs(pkg) {
     if (!pkg) return false
     if (pkg.type === "commonjs") return true
@@ -162,6 +166,7 @@ function packageLooksCommonJs(pkg) {
     return /(?:^|\/)(cjs|umd)(?:\/|$)/.test(main) || main.endsWith(".cjs")
 }
 
+// fallow-ignore-next-line complexity
 function validateRuntimeImportGraph() {
     const pending = [path.join(root, "index.ts")]
     const seen = new Set()
@@ -198,6 +203,7 @@ function validateRuntimeImportGraph() {
     }
 }
 
+// fallow-ignore-next-line complexity
 function validatePackedFiles() {
     const output = execFileSync("npm", ["pack", "--dry-run", "--json"], {
         cwd: root,

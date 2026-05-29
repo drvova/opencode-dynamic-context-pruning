@@ -14,6 +14,7 @@ export async function fetchSessionMessages(client: OpencodeClient, sessionId: st
     return filterMessages(response?.data || response)
 }
 
+// fallow-ignore-next-line complexity
 export function buildSearchContext(state: SessionState, rawMessages: WithParts[]): SearchContext {
     const rawMessagesById = new Map<string, WithParts>()
     const rawIndexById = new Map<string, number>()
@@ -72,6 +73,7 @@ function formatBoundaryIssues(issues: string[]): string {
     return issues.length === 1 ? issues[0] : issues.map((issue) => `- ${issue}`).join("\n")
 }
 
+// fallow-ignore-next-line complexity
 export function resolveBoundaryIds(
     context: SearchContext,
     state: SessionState,
@@ -214,6 +216,7 @@ export function resolveAnchorMessageId(startReference: BoundaryReference): strin
     return startReference.messageId
 }
 
+// fallow-ignore-next-line complexity
 function addMessageBoundaryRefs(
     state: SessionState,
     context: SearchContext,

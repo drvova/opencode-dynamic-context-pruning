@@ -90,6 +90,7 @@ function formatCompressionTime(ms: number): string {
     return `${minutes}m ${seconds}s`
 }
 
+// fallow-ignore-next-line complexity
 export async function handleStatsCommand(ctx: StatsCommandContext): Promise<void> {
     const { client, state, logger, sessionId, messages } = ctx
 

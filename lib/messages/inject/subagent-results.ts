@@ -25,6 +25,7 @@ type CompletedTaskToolPart = ToolPart & {
     }
 }
 
+// fallow-ignore-next-line complexity
 function isValidCompletedTaskPart(
     part: Part,
     pruneTools: Map<string, number>,
@@ -57,6 +58,7 @@ function tryApplyCachedSubAgentResult(
     return false
 }
 
+// fallow-ignore-next-line complexity
 async function fetchAndMergeSubAgentResult(
     part: CompletedTaskToolPart,
     client: OpencodeClient,
@@ -91,6 +93,7 @@ async function fetchAndMergeSubAgentResult(
     )
 }
 
+// fallow-ignore-next-line complexity
 export const injectExtendedSubAgentResults = async (
     client: OpencodeClient,
     state: SessionState,

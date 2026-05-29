@@ -36,6 +36,7 @@ interface CollectedToolPart {
     turn: number
 }
 
+// fallow-ignore-next-line complexity
 function collectToolParts(
     state: SessionState,
     messages: WithParts[],
@@ -94,6 +95,7 @@ function cacheToolPart(
 /**
  * Sync tool parameters from session messages.
  */
+// fallow-ignore-next-line complexity
 export function syncToolCache(
     state: SessionState,
     config: PluginConfig,

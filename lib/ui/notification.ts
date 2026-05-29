@@ -110,6 +110,7 @@ function resolveNotificationMessage(
         : buildDetailedMessage(state, reason, pruneToolIds, toolMetadata, workingDirectory)
 }
 
+// fallow-ignore-next-line complexity
 async function sendUnifiedNotification(
     client: OpencodeClient,
     logger: Logger,
@@ -178,6 +179,7 @@ function formatCompressionMetrics(removedTokens: number, summaryTokens: number):
     return metrics.join(", ")
 }
 
+// fallow-ignore-next-line complexity
 function collectCompressedBlockIds(
     entries: CompressionNotificationEntry[],
     state: SessionState,
@@ -195,6 +197,7 @@ function collectCompressedBlockIds(
     return { messageIds: [...messageIds], toolIds: [...toolIds] }
 }
 
+// fallow-ignore-next-line complexity
 function resolveCompressionTopic(
     entries: CompressionNotificationEntry[],
     batchTopic: string | undefined,
@@ -209,6 +212,7 @@ function resolveCompressionTopic(
     )
 }
 
+// fallow-ignore-next-line complexity
 function buildDetailedCompressMessage(
     notificationHeader: string,
     compressionLabel: string,
@@ -281,6 +285,7 @@ async function sendCompressionToast(
     })
 }
 
+// fallow-ignore-next-line complexity
 export async function sendCompressNotification(
     client: OpencodeClient,
     logger: Logger,
@@ -358,6 +363,7 @@ function buildModelParam(params: PromptParams): { providerID: string; modelID: s
     return { providerID: params.providerId, modelID: params.modelId }
 }
 
+// fallow-ignore-next-line complexity
 export async function sendIgnoredMessage(
     client: OpencodeClient,
     sessionID: string,

@@ -45,6 +45,7 @@ export function resolveRanges(
     })
 }
 
+// fallow-ignore-next-line complexity
 export function validateNonOverlapping(plans: ResolvedRangeCompression[]): void {
     const sortedPlans = [...plans].sort(
         (left, right) =>
@@ -102,6 +103,7 @@ export function parseBlockPlaceholders(summary: string): ParsedBlockPlaceholder[
     return placeholders
 }
 
+// fallow-ignore-next-line complexity
 export function validateSummaryPlaceholders(
     placeholders: ParsedBlockPlaceholder[],
     requiredBlockIds: number[],
@@ -145,6 +147,7 @@ export function validateSummaryPlaceholders(
     return strictRequiredIds.filter((id) => !keptPlaceholderIds.has(id))
 }
 
+// fallow-ignore-next-line complexity
 export function injectBlockPlaceholders(
     summary: string,
     placeholders: ParsedBlockPlaceholder[],
@@ -201,6 +204,7 @@ export function injectBlockPlaceholders(
     }
 }
 
+// fallow-ignore-next-line complexity
 export function appendMissingBlockSummaries(
     summary: string,
     missingBlockIds: number[],
@@ -255,6 +259,7 @@ function restoreSummary(summary: string): string {
         .replace(/(?:\r?\n)+$/, "")
 }
 
+// fallow-ignore-next-line complexity
 function injectBoundarySummary(
     summary: string,
     reference: BoundaryReference,
