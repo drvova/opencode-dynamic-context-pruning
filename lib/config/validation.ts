@@ -1,5 +1,13 @@
 import type { PluginInput } from "@opencode-ai/plugin"
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === "object" && !Array.isArray(value)
+}
+
+function isDynamicMapKey(key: string): boolean {
+    return key === "compress.modelMaxLimits" || key === "compress.modelMinLimits"
+}
+
 const VALID_CONFIG_KEYS = new Set([
     "$schema",
     "enabled",
@@ -53,13 +61,8 @@ function getConfigKeyPaths(obj: Record<string, unknown>, prefix = ""): string[] 
     for (const key of Object.keys(obj)) {
         const fullKey = prefix ? `${prefix}.${key}` : key
         keys.push(fullKey)
-
-        // model*Limits are dynamic maps keyed by providerID/modelID; do not recurse into arbitrary IDs.
-        if (fullKey === "compress.modelMaxLimits" || fullKey === "compress.modelMinLimits") {
-            continue
-        }
-
-        if (obj[key] && typeof obj[key] === "object" && !Array.isArray(obj[key])) {
+        if (isDynamicMapKey(fullKey)) continue
+        if (isPlainObject(obj[key])) {
             keys.push(...getConfigKeyPaths(obj[key] as Record<string, unknown>, fullKey))
         }
     }
@@ -147,10 +150,10 @@ function validateNested(
     validate: (obj: Record<string, unknown>) => void,
 ): void {
     if (value === undefined) return
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    if (!isPlainObject(value)) {
         errors.push({ key, expected: "object", actual: typeof value })
     } else {
-        validate(value as Record<string, unknown>)
+        validate(value)
     }
 }
 
@@ -161,11 +164,15 @@ function validateNestedIfTruthy(
     validate: (obj: Record<string, unknown>) => void,
 ): void {
     if (!value) return
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    if (!isPlainObject(value)) {
         errors.push({ key, expected: "object", actual: typeof value })
     } else {
-        validate(value as Record<string, unknown>)
+        validate(value)
     }
+}
+
+function isLimitValue(value: unknown): boolean {
+    return typeof value === "number" || (typeof value === "string" && /^\d+(?:\.\d+)?%$/.test(value))
 }
 
 function validateLimitValue(
@@ -174,9 +181,7 @@ function validateLimitValue(
     errors: ValidationError[],
 ): void {
     if (value === undefined) return
-    const isValidNumber = typeof value === "number"
-    const isPercentString = typeof value === "string" && value.endsWith("%")
-    if (!isValidNumber && !isPercentString) {
+    if (!isLimitValue(value)) {
         errors.push({
             key,
             expected: 'number | "${number}%"',
@@ -191,7 +196,7 @@ function validateModelLimits(
     errors: ValidationError[],
 ): void {
     if (limits === undefined) return
-    if (typeof limits !== "object" || limits === null || Array.isArray(limits)) {
+    if (!isPlainObject(limits)) {
         errors.push({
             key,
             expected: "Record<string, number | ${number}%>",
@@ -199,17 +204,8 @@ function validateModelLimits(
         })
         return
     }
-    for (const [providerModelKey, limit] of Object.entries(limits as Record<string, unknown>)) {
-        const isValidNumber = typeof limit === "number"
-        const isPercentString =
-            typeof limit === "string" && /^\d+(?:\.\d+)?%$/.test(limit)
-        if (!isValidNumber && !isPercentString) {
-            errors.push({
-                key: `${key}.${providerModelKey}`,
-                expected: 'number | "${number}%"',
-                actual: JSON.stringify(limit),
-            })
-        }
+    for (const [providerModelKey, limit] of Object.entries(limits)) {
+        validateLimitValue(`${key}.${providerModelKey}`, limit, errors)
     }
 }
 
@@ -281,37 +277,26 @@ function validateConfigTypes(config: Record<string, unknown>): ValidationError[]
     return errors
 }
 
-export function showConfigWarnings(
-    ctx: PluginInput,
-    configPath: string,
-    configData: Record<string, unknown>,
-    isProject: boolean,
-): void {
-    const invalidKeys = getInvalidConfigKeys(configData)
-    const typeErrors = validateConfigTypes(configData)
+function buildUnknownKeyMessage(invalidKeys: string[]): string | null {
+    if (invalidKeys.length === 0) return null
+    const keyList = invalidKeys.slice(0, 3).join(", ")
+    const suffix = invalidKeys.length > 3 ? ` (+${invalidKeys.length - 3} more)` : ""
+    return `Unknown keys: ${keyList}${suffix}`
+}
 
-    if (invalidKeys.length === 0 && typeErrors.length === 0) {
-        return
-    }
-
-    const configType = isProject ? "project config" : "config"
+function buildTypeErrorMessages(typeErrors: ValidationError[]): string[] {
     const messages: string[] = []
-
-    if (invalidKeys.length > 0) {
-        const keyList = invalidKeys.slice(0, 3).join(", ")
-        const suffix = invalidKeys.length > 3 ? ` (+${invalidKeys.length - 3} more)` : ""
-        messages.push(`Unknown keys: ${keyList}${suffix}`)
+    if (typeErrors.length === 0) return messages
+    for (const err of typeErrors.slice(0, 2)) {
+        messages.push(`${err.key}: expected ${err.expected}, got ${err.actual}`)
     }
-
-    if (typeErrors.length > 0) {
-        for (const err of typeErrors.slice(0, 2)) {
-            messages.push(`${err.key}: expected ${err.expected}, got ${err.actual}`)
-        }
-        if (typeErrors.length > 2) {
-            messages.push(`(+${typeErrors.length - 2} more type errors)`)
-        }
+    if (typeErrors.length > 2) {
+        messages.push(`(+${typeErrors.length - 2} more type errors)`)
     }
+    return messages
+}
 
+function showWarningToast(ctx: PluginInput, configType: string, configPath: string, messages: string[]): void {
     setTimeout(() => {
         try {
             ctx.client.tui.showToast({
@@ -324,4 +309,22 @@ export function showConfigWarnings(
             })
         } catch {}
     }, 7000)
+}
+
+export function showConfigWarnings(
+    ctx: PluginInput,
+    configPath: string,
+    configData: Record<string, unknown>,
+    isProject: boolean,
+): void {
+    const invalidKeys = getInvalidConfigKeys(configData)
+    const typeErrors = validateConfigTypes(configData)
+    if (invalidKeys.length === 0 && typeErrors.length === 0) return
+
+    const configType = isProject ? "project config" : "config"
+    const messages: string[] = []
+    const unknownKeyMsg = buildUnknownKeyMessage(invalidKeys)
+    if (unknownKeyMsg) messages.push(unknownKeyMsg)
+    messages.push(...buildTypeErrorMessages(typeErrors))
+    showWarningToast(ctx, configType, configPath, messages)
 }

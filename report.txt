@@ -1,11 +1,11 @@
 {
   "schema_version": 6,
   "version": "2.81.0",
-  "elapsed_ms": 102,
+  "elapsed_ms": 73,
   "check": {
     "schema_version": 6,
     "version": "2.81.0",
-    "elapsed_ms": 80,
+    "elapsed_ms": 65,
     "total_issues": 0,
     "entry_points": {
       "total": 23,
@@ -68,7 +68,7 @@
     "stats": {
       "total_files": 66,
       "files_with_clones": 0,
-      "total_lines": 10738,
+      "total_lines": 10964,
       "duplicated_lines": 0,
       "total_tokens": 55516,
       "duplicated_tokens": 0,
@@ -87,7 +87,7 @@
       "max_cognitive_threshold": 25,
       "max_crap_threshold": 300.0,
       "files_scored": 81,
-      "average_maintainability": 89.0,
+      "average_maintainability": 89.3,
       "coverage_model": "static_estimated",
       "severity_critical_count": 0,
       "severity_high_count": 0,
@@ -101,7 +101,7 @@
       "p90_cyclomatic": 6,
       "hotspot_count": 0,
       "hotspot_top_pct_count": 1,
-      "maintainability_avg": 89.0,
+      "maintainability_avg": 89.3,
       "maintainability_low_pct": 0.0,
       "unused_dep_count": 0,
       "unused_deps_per_k_files": 0.0,
@@ -112,13 +112,13 @@
         "total_exports": 300,
         "dead_files": 0,
         "dead_exports": 0,
-        "total_lines": 16633,
+        "total_lines": 16859,
         "files_scored": 81,
         "total_deps": 0
       },
       "unit_size_profile": {
-        "low_risk": 67.7,
-        "medium_risk": 19.2,
+        "low_risk": 67.6,
+        "medium_risk": 19.3,
         "high_risk": 10.6,
         "very_high_risk": 2.5
       },
@@ -131,23 +131,9 @@
       },
       "p95_fan_in": 9,
       "coupling_high_pct": 4.9,
-      "total_loc": 16633
+      "total_loc": 16859
     },
     "file_scores": [
-      {
-        "path": "lib/messages/query.ts",
-        "fan_in": 20,
-        "fan_out": 3,
-        "dead_code_ratio": 0.0,
-        "complexity_density": 0.46,
-        "maintainability_index": 80.7,
-        "total_cyclomatic": 25,
-        "total_cognitive": 13,
-        "function_count": 7,
-        "lines": 54,
-        "crap_max": 30.0,
-        "crap_above_threshold": 2
-      },
       {
         "path": "lib/compress/protected-content.ts",
         "fan_in": 3,
@@ -247,34 +233,6 @@
         "crap_above_threshold": 5
       },
       {
-        "path": "lib/ui/param-formatters.ts",
-        "fan_in": 2,
-        "fan_out": 0,
-        "dead_code_ratio": 0.0,
-        "complexity_density": 0.51,
-        "maintainability_index": 84.7,
-        "total_cyclomatic": 57,
-        "total_cognitive": 41,
-        "function_count": 16,
-        "lines": 111,
-        "crap_max": 56.0,
-        "crap_above_threshold": 5
-      },
-      {
-        "path": "lib/token-counting.ts",
-        "fan_in": 12,
-        "fan_out": 1,
-        "dead_code_ratio": 0.0,
-        "complexity_density": 0.41,
-        "maintainability_index": 84.9,
-        "total_cyclomatic": 29,
-        "total_cognitive": 18,
-        "function_count": 9,
-        "lines": 70,
-        "crap_max": 42.0,
-        "crap_above_threshold": 2
-      },
-      {
         "path": "lib/messages/inject/utils.ts",
         "fan_in": 4,
         "fan_out": 9,
@@ -359,6 +317,20 @@
         "crap_above_threshold": 4
       },
       {
+        "path": "lib/messages/query.ts",
+        "fan_in": 20,
+        "fan_out": 3,
+        "dead_code_ratio": 0.0,
+        "complexity_density": 0.28,
+        "maintainability_index": 86.1,
+        "total_cyclomatic": 25,
+        "total_cognitive": 13,
+        "function_count": 7,
+        "lines": 89,
+        "crap_max": 30.0,
+        "crap_above_threshold": 2
+      },
+      {
         "path": "lib/messages/priority.ts",
         "fan_in": 4,
         "fan_out": 5,
@@ -441,20 +413,6 @@
         "lines": 171,
         "crap_max": 42.0,
         "crap_above_threshold": 2
-      },
-      {
-        "path": "lib/config/merge.ts",
-        "fan_in": 2,
-        "fan_out": 1,
-        "dead_code_ratio": 0.0,
-        "complexity_density": 0.35,
-        "maintainability_index": 86.7,
-        "total_cyclomatic": 55,
-        "total_cognitive": 37,
-        "function_count": 8,
-        "lines": 159,
-        "crap_max": 240.0,
-        "crap_above_threshold": 3
       },
       {
         "path": "tests/compression-groups.test.ts",
@@ -681,6 +639,20 @@
         "crap_above_threshold": 7
       },
       {
+        "path": "lib/config/merge.ts",
+        "fan_in": 2,
+        "fan_out": 1,
+        "dead_code_ratio": 0.0,
+        "complexity_density": 0.28,
+        "maintainability_index": 88.8,
+        "total_cyclomatic": 55,
+        "total_cognitive": 37,
+        "function_count": 8,
+        "lines": 193,
+        "crap_max": 240.0,
+        "crap_above_threshold": 3
+      },
+      {
         "path": "tests/compress-message.test.ts",
         "fan_in": 0,
         "fan_out": 5,
@@ -805,6 +777,20 @@
         "lines": 78,
         "crap_max": 12.0,
         "crap_above_threshold": 0
+      },
+      {
+        "path": "lib/token-counting.ts",
+        "fan_in": 12,
+        "fan_out": 1,
+        "dead_code_ratio": 0.0,
+        "complexity_density": 0.25,
+        "maintainability_index": 89.7,
+        "total_cyclomatic": 29,
+        "total_cognitive": 18,
+        "function_count": 9,
+        "lines": 117,
+        "crap_max": 42.0,
+        "crap_above_threshold": 2
       },
       {
         "path": "tests/compress-range.test.ts",
@@ -1029,6 +1015,20 @@
         "lines": 165,
         "crap_max": 12.0,
         "crap_above_threshold": 0
+      },
+      {
+        "path": "lib/ui/param-formatters.ts",
+        "fan_in": 2,
+        "fan_out": 0,
+        "dead_code_ratio": 0.0,
+        "complexity_density": 0.26,
+        "maintainability_index": 92.2,
+        "total_cyclomatic": 57,
+        "total_cognitive": 41,
+        "function_count": 16,
+        "lines": 221,
+        "crap_max": 56.0,
+        "crap_above_threshold": 5
       },
       {
         "path": "scripts/verify-package.mjs",
@@ -1274,7 +1274,7 @@
         "path": "lib/messages/utils.ts",
         "score": 30.5,
         "commits": 88,
-        "weighted_commits": 38.49,
+        "weighted_commits": 38.48,
         "lines_added": 1211,
         "lines_deleted": 976,
         "complexity_density": 0.28,
@@ -1299,7 +1299,7 @@
         "path": "lib/hooks.ts",
         "score": 23.9,
         "commits": 124,
-        "weighted_commits": 52.78,
+        "weighted_commits": 52.77,
         "lines_added": 1638,
         "lines_deleted": 1225,
         "complexity_density": 0.16,
@@ -1324,7 +1324,7 @@
         "path": "index.ts",
         "score": 19.1,
         "commits": 129,
-        "weighted_commits": 44.95,
+        "weighted_commits": 44.94,
         "lines_added": 1941,
         "lines_deleted": 1783,
         "complexity_density": 0.15,
@@ -1374,7 +1374,7 @@
         "path": "lib/token-utils.ts",
         "score": 15.6,
         "commits": 10,
-        "weighted_commits": 8.23,
+        "weighted_commits": 8.22,
         "lines_added": 223,
         "lines_deleted": 200,
         "complexity_density": 0.67,
@@ -1449,7 +1449,7 @@
         "path": "lib/ui/notification.ts",
         "score": 12.1,
         "commits": 58,
-        "weighted_commits": 25.13,
+        "weighted_commits": 25.12,
         "lines_added": 1307,
         "lines_deleted": 901,
         "complexity_density": 0.17,
@@ -1474,7 +1474,7 @@
         "path": "lib/messages/inject/utils.ts",
         "score": 11.3,
         "commits": 39,
-        "weighted_commits": 20.95,
+        "weighted_commits": 20.94,
         "lines_added": 849,
         "lines_deleted": 463,
         "complexity_density": 0.19,
@@ -1599,7 +1599,7 @@
         "path": "lib/logger.ts",
         "score": 7.8,
         "commits": 25,
-        "weighted_commits": 10.21,
+        "weighted_commits": 10.2,
         "lines_added": 568,
         "lines_deleted": 438,
         "complexity_density": 0.27,
@@ -1624,7 +1624,7 @@
         "path": "lib/state/persistence.ts",
         "score": 6.8,
         "commits": 31,
-        "weighted_commits": 14.14,
+        "weighted_commits": 14.13,
         "lines_added": 601,
         "lines_deleted": 301,
         "complexity_density": 0.17,
@@ -1671,31 +1671,6 @@
         ]
       },
       {
-        "path": "lib/ui/param-formatters.ts",
-        "score": 5.7,
-        "commits": 4,
-        "weighted_commits": 3.98,
-        "lines_added": 144,
-        "lines_deleted": 34,
-        "complexity_density": 0.51,
-        "fan_in": 2,
-        "trend": "stable",
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `lib/ui/param-formatters.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `lib/ui/param-formatters.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
         "path": "lib/message-ids.ts",
         "score": 5.4,
         "commits": 14,
@@ -1716,31 +1691,6 @@
             "type": "add-tests",
             "auto_fixable": false,
             "description": "Add test coverage for `lib/message-ids.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
-        "path": "lib/token-counting.ts",
-        "score": 4.6,
-        "commits": 4,
-        "weighted_commits": 3.98,
-        "lines_added": 123,
-        "lines_deleted": 54,
-        "complexity_density": 0.41,
-        "fan_in": 12,
-        "trend": "cooling",
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `lib/token-counting.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `lib/token-counting.ts` to reduce change risk",
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
@@ -1774,7 +1724,7 @@
         "path": "lib/strategies/purge-errors.ts",
         "score": 4.4,
         "commits": 17,
-        "weighted_commits": 8.6,
+        "weighted_commits": 8.59,
         "lines_added": 171,
         "lines_deleted": 91,
         "complexity_density": 0.18,
@@ -1791,31 +1741,6 @@
             "type": "add-tests",
             "auto_fixable": false,
             "description": "Add test coverage for `lib/strategies/purge-errors.ts` to reduce change risk",
-            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
-          }
-        ]
-      },
-      {
-        "path": "lib/messages/query.ts",
-        "score": 4.3,
-        "commits": 4,
-        "weighted_commits": 3.28,
-        "lines_added": 84,
-        "lines_deleted": 31,
-        "complexity_density": 0.46,
-        "fan_in": 20,
-        "trend": "stable",
-        "actions": [
-          {
-            "type": "refactor-file",
-            "auto_fixable": false,
-            "description": "Refactor `lib/messages/query.ts`, high complexity combined with frequent changes makes this a maintenance risk",
-            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
-          },
-          {
-            "type": "add-tests",
-            "auto_fixable": false,
-            "description": "Add test coverage for `lib/messages/query.ts` to reduce change risk",
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
@@ -1849,7 +1774,7 @@
         "path": "lib/prompts/index.ts",
         "score": 4.2,
         "commits": 25,
-        "weighted_commits": 11.31,
+        "weighted_commits": 11.3,
         "lines_added": 240,
         "lines_deleted": 211,
         "complexity_density": 0.13,
@@ -1874,7 +1799,7 @@
         "path": "lib/compress/protected-content.ts",
         "score": 4.1,
         "commits": 6,
-        "weighted_commits": 4.8,
+        "weighted_commits": 4.79,
         "lines_added": 342,
         "lines_deleted": 146,
         "complexity_density": 0.3,
@@ -1971,6 +1896,31 @@
         ]
       },
       {
+        "path": "lib/ui/param-formatters.ts",
+        "score": 3.7,
+        "commits": 5,
+        "weighted_commits": 4.98,
+        "lines_added": 254,
+        "lines_deleted": 34,
+        "complexity_density": 0.26,
+        "fan_in": 2,
+        "trend": "stable",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/ui/param-formatters.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/ui/param-formatters.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
         "path": "lib/compress/state.ts",
         "score": 3.6,
         "commits": 10,
@@ -2021,6 +1971,56 @@
         ]
       },
       {
+        "path": "lib/token-counting.ts",
+        "score": 3.5,
+        "commits": 5,
+        "weighted_commits": 4.98,
+        "lines_added": 170,
+        "lines_deleted": 54,
+        "complexity_density": 0.25,
+        "fan_in": 12,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/token-counting.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/token-counting.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "lib/messages/query.ts",
+        "score": 3.4,
+        "commits": 5,
+        "weighted_commits": 4.28,
+        "lines_added": 119,
+        "lines_deleted": 31,
+        "complexity_density": 0.28,
+        "fan_in": 20,
+        "trend": "stable",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/messages/query.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/messages/query.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
         "path": "tests/compress-message.test.ts",
         "score": 3.3,
         "commits": 13,
@@ -2050,7 +2050,7 @@
         "path": "lib/compress/message-utils.ts",
         "score": 3.0,
         "commits": 8,
-        "weighted_commits": 5.64,
+        "weighted_commits": 5.63,
         "lines_added": 358,
         "lines_deleted": 93,
         "complexity_density": 0.19,
@@ -2075,7 +2075,7 @@
         "path": "lib/protected-patterns.ts",
         "score": 3.0,
         "commits": 5,
-        "weighted_commits": 3.54,
+        "weighted_commits": 3.53,
         "lines_added": 166,
         "lines_deleted": 21,
         "complexity_density": 0.3,
@@ -2125,7 +2125,7 @@
         "path": "lib/messages/shape.ts",
         "score": 2.4,
         "commits": 3,
-        "weighted_commits": 2.32,
+        "weighted_commits": 2.31,
         "lines_added": 63,
         "lines_deleted": 11,
         "complexity_density": 0.36,
@@ -2142,6 +2142,31 @@
             "type": "add-tests",
             "auto_fixable": false,
             "description": "Add test coverage for `lib/messages/shape.ts` to reduce change risk",
+            "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+          }
+        ]
+      },
+      {
+        "path": "lib/config/merge.ts",
+        "score": 2.4,
+        "commits": 3,
+        "weighted_commits": 3.0,
+        "lines_added": 197,
+        "lines_deleted": 5,
+        "complexity_density": 0.28,
+        "fan_in": 2,
+        "trend": "cooling",
+        "actions": [
+          {
+            "type": "refactor-file",
+            "auto_fixable": false,
+            "description": "Refactor `lib/config/merge.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+            "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+          },
+          {
+            "type": "add-tests",
+            "auto_fixable": false,
+            "description": "Add test coverage for `lib/config/merge.ts` to reduce change risk",
             "note": "Frequently changed complex files benefit most from comprehensive test coverage"
           }
         ]
@@ -2200,7 +2225,7 @@
         "path": "lib/commands/stats.ts",
         "score": 2.1,
         "commits": 11,
-        "weighted_commits": 6.64,
+        "weighted_commits": 6.63,
         "lines_added": 173,
         "lines_deleted": 24,
         "complexity_density": 0.11,
@@ -2654,7 +2679,7 @@
         "path": "tests/hooks-permission.test.ts",
         "score": 1.0,
         "commits": 13,
-        "weighted_commits": 8.91,
+        "weighted_commits": 8.9,
         "lines_added": 864,
         "lines_deleted": 155,
         "complexity_density": 0.04,
@@ -2834,198 +2859,10 @@
     "hotspot_summary": {
       "since": "6 months",
       "min_commits": 3,
-      "files_analyzed": 62,
-      "files_excluded": 19,
+      "files_analyzed": 63,
+      "files_excluded": 18,
       "shallow_clone": false
     },
-    "targets": [
-      {
-        "path": "lib/messages/query.ts",
-        "priority": 32.9,
-        "efficiency": 11.0,
-        "recommendation": "Split high-impact file (54 LOC) — 20 dependents amplify every change",
-        "category": "split_high_impact",
-        "effort": "high",
-        "confidence": "medium",
-        "factors": [
-          {
-            "metric": "complexity_density",
-            "value": 0.46,
-            "threshold": 0.3,
-            "detail": "density 0.46 exceeds 0.3"
-          },
-          {
-            "metric": "fan_in",
-            "value": 20.0,
-            "threshold": 4.0,
-            "detail": "20 files depend on this"
-          },
-          {
-            "metric": "crap_max",
-            "value": 30.0,
-            "threshold": 30.0,
-            "detail": "2 functions with untested complexity risk"
-          }
-        ],
-        "actions": [
-          {
-            "type": "apply-refactoring",
-            "auto_fixable": false,
-            "description": "Split high-impact file (54 LOC) — 20 dependents amplify every change",
-            "category": "split_high_impact"
-          }
-        ]
-      },
-      {
-        "path": "lib/token-counting.ts",
-        "priority": 29.5,
-        "efficiency": 9.8,
-        "recommendation": "Split high-impact file (70 LOC) — 12 dependents amplify every change",
-        "category": "split_high_impact",
-        "effort": "high",
-        "confidence": "medium",
-        "factors": [
-          {
-            "metric": "complexity_density",
-            "value": 0.41,
-            "threshold": 0.3,
-            "detail": "density 0.41 exceeds 0.3"
-          },
-          {
-            "metric": "fan_in",
-            "value": 12.0,
-            "threshold": 4.0,
-            "detail": "12 files depend on this"
-          },
-          {
-            "metric": "crap_max",
-            "value": 42.0,
-            "threshold": 30.0,
-            "detail": "2 functions with untested complexity risk"
-          }
-        ],
-        "actions": [
-          {
-            "type": "apply-refactoring",
-            "auto_fixable": false,
-            "description": "Split high-impact file (70 LOC) — 12 dependents amplify every change",
-            "category": "split_high_impact"
-          }
-        ]
-      },
-      {
-        "path": "lib/config/merge.ts",
-        "priority": 14.8,
-        "efficiency": 7.4,
-        "recommendation": "3 complex functions lack test coverage path, add tests before modifying",
-        "category": "add_test_coverage",
-        "effort": "medium",
-        "confidence": "high",
-        "factors": [
-          {
-            "metric": "complexity_density",
-            "value": 0.35,
-            "threshold": 0.3,
-            "detail": "density 0.35 exceeds 0.3"
-          },
-          {
-            "metric": "crap_max",
-            "value": 240.0,
-            "threshold": 30.0,
-            "detail": "3 functions with untested complexity risk"
-          }
-        ],
-        "evidence": {
-          "complex_functions": [
-            {
-              "name": "mergeCompress",
-              "line": 39,
-              "cognitive": 14
-            },
-            {
-              "name": "mergeLayer",
-              "line": 139,
-              "cognitive": 7
-            },
-            {
-              "name": "mergeStrategies",
-              "line": 7,
-              "cognitive": 6
-            }
-          ]
-        },
-        "actions": [
-          {
-            "type": "apply-refactoring",
-            "auto_fixable": false,
-            "description": "3 complex functions lack test coverage path, add tests before modifying",
-            "category": "add_test_coverage"
-          },
-          {
-            "type": "suppress-line",
-            "auto_fixable": false,
-            "description": "Suppress the underlying complexity finding",
-            "comment": "// fallow-ignore-next-line complexity"
-          }
-        ]
-      },
-      {
-        "path": "lib/ui/param-formatters.ts",
-        "priority": 20.1,
-        "efficiency": 6.7,
-        "recommendation": "5 complex functions lack test coverage path, add tests before modifying",
-        "category": "add_test_coverage",
-        "effort": "high",
-        "confidence": "high",
-        "factors": [
-          {
-            "metric": "complexity_density",
-            "value": 0.51,
-            "threshold": 0.3,
-            "detail": "density 0.51 exceeds 0.3"
-          },
-          {
-            "metric": "crap_max",
-            "value": 56.0,
-            "threshold": 30.0,
-            "detail": "5 functions with untested complexity risk"
-          }
-        ],
-        "evidence": {
-          "complex_functions": [
-            {
-              "name": "formatApplyPatchParams",
-              "line": 12,
-              "cognitive": 6
-            },
-            {
-              "name": "formatQuestionParams",
-              "line": 58,
-              "cognitive": 6
-            },
-            {
-              "name": "formatReadParams",
-              "line": 1,
-              "cognitive": 5
-            }
-          ]
-        },
-        "actions": [
-          {
-            "type": "apply-refactoring",
-            "auto_fixable": false,
-            "description": "5 complex functions lack test coverage path, add tests before modifying",
-            "category": "add_test_coverage"
-          },
-          {
-            "type": "suppress-line",
-            "auto_fixable": false,
-            "description": "Suppress the underlying complexity finding",
-            "comment": "// fallow-ignore-next-line complexity"
-          }
-        ]
-      }
-    ],
     "target_thresholds": {
       "fan_in_p95": 9.0,
       "fan_in_p75": 4.0,

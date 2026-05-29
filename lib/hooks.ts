@@ -130,6 +130,10 @@ function renderAndInjectPrompt(
     }
 }
 
+function countReceivedMessages(output: { messages: unknown }): number {
+    return Array.isArray(output.messages) ? output.messages.length : 0
+}
+
 export function createChatMessageTransformHandler(
     client: OpencodeClient,
     state: SessionState,
@@ -139,7 +143,7 @@ export function createChatMessageTransformHandler(
     hostPermissions: HostPermissionSnapshot,
 ) {
     return async (input: {}, output: { messages: WithParts[] }) => {
-        const receivedMessages = Array.isArray(output.messages) ? output.messages.length : 0
+        const receivedMessages = countReceivedMessages(output)
         const messages = filterMessagesInPlace(output.messages)
         if (messages.length !== receivedMessages) {
             logger.warn("Skipping messages with unexpected shape during chat transform", {
@@ -152,9 +156,7 @@ export function createChatMessageTransformHandler(
 
         syncCompressPermissionState(state, config, hostPermissions, output.messages)
 
-        if (state.isSubAgent && !config.experimental.allowSubAgents) {
-            return
-        }
+        if (shouldSkipForSubAgent(state, config)) return
 
         stripHallucinations(output.messages)
         cacheSystemPromptTokens(state, output.messages)
@@ -283,6 +285,46 @@ async function handleDcpCompress(
     } as Part)
 }
 
+type SubcommandHandler = (
+    commandCtx: DcpCommandContext,
+    subArgs: string[],
+    input: { command: string; sessionID: string; arguments: string },
+    output: { parts: Part[] },
+    state: SessionState,
+    workingDirectory: string,
+) => Promise<string | void>
+
+const DCP_ROUTES: Record<string, SubcommandHandler> = {
+    context: async (ctx) => {
+        await handleContextCommand(ctx)
+        return "__DCP_CONTEXT_HANDLED__"
+    },
+    stats: async (ctx) => {
+        await handleStatsCommand(ctx)
+        return "__DCP_STATS_HANDLED__"
+    },
+    sweep: async (ctx, subArgs, _, __, ___, workingDirectory) => {
+        await handleSweepCommand({ ...ctx, args: subArgs, workingDirectory })
+        return "__DCP_SWEEP_HANDLED__"
+    },
+    manual: async (ctx, subArgs) => {
+        await handleManualToggleCommand(ctx, subArgs[0]?.toLowerCase())
+        return "__DCP_MANUAL_HANDLED__"
+    },
+    compress: async (ctx, subArgs, input, output, state) => {
+        await handleDcpCompress(ctx, subArgs, "compress", input, output, state)
+        return undefined
+    },
+    decompress: async (ctx, subArgs) => {
+        await handleDecompressCommand({ ...ctx, args: subArgs })
+        return "__DCP_DECOMPRESS_HANDLED__"
+    },
+    recompress: async (ctx, subArgs) => {
+        await handleRecompressCommand({ ...ctx, args: subArgs })
+        return "__DCP_RECOMPRESS_HANDLED__"
+    },
+}
+
 async function routeDcpSubcommand(
     prepared: { commandCtx: DcpCommandContext; subcommand: string; subArgs: string[] },
     input: { command: string; sessionID: string; arguments: string },
@@ -291,36 +333,12 @@ async function routeDcpSubcommand(
     workingDirectory: string,
 ) {
     const { commandCtx, subcommand, subArgs } = prepared
-
-    if (subcommand === "context") {
-        await handleContextCommand(commandCtx)
-        throw new Error("__DCP_CONTEXT_HANDLED__")
-    }
-    if (subcommand === "stats") {
-        await handleStatsCommand(commandCtx)
-        throw new Error("__DCP_STATS_HANDLED__")
-    }
-    if (subcommand === "sweep") {
-        await handleSweepCommand({ ...commandCtx, args: subArgs, workingDirectory })
-        throw new Error("__DCP_SWEEP_HANDLED__")
-    }
-    if (subcommand === "manual") {
-        await handleManualToggleCommand(commandCtx, subArgs[0]?.toLowerCase())
-        throw new Error("__DCP_MANUAL_HANDLED__")
-    }
-    if (subcommand === "compress") {
-        await handleDcpCompress(commandCtx, subArgs, subcommand, input, output, state)
+    const handler = DCP_ROUTES[subcommand]
+    if (handler) {
+        const sentinel = await handler(commandCtx, subArgs, input, output, state, workingDirectory)
+        if (sentinel) throw new Error(sentinel)
         return
     }
-    if (subcommand === "decompress") {
-        await handleDecompressCommand({ ...commandCtx, args: subArgs })
-        throw new Error("__DCP_DECOMPRESS_HANDLED__")
-    }
-    if (subcommand === "recompress") {
-        await handleRecompressCommand({ ...commandCtx, args: subArgs })
-        throw new Error("__DCP_RECOMPRESS_HANDLED__")
-    }
-
     await handleHelpCommand(commandCtx)
     throw new Error("__DCP_HELP_HANDLED__")
 }
@@ -337,22 +355,18 @@ export function createTextCompleteHandler() {
 export function createEventHandler(state: SessionState, logger: Logger) {
     return async (input: { event: Event }) => {
         if (input.event.type !== "message.part.updated") return
-
         const { part, time: eventTime } = input.event.properties
         if (part.type !== "tool" || part.tool !== "compress") return
 
         const { state: toolState } = part
-        if (toolState.status === "pending") {
-            handleCompressionPending(part, eventTime, state, logger)
-            return
+        const statusHandlers: Record<string, () => Promise<void> | void> = {
+            pending: () => handleCompressionPending(part, eventTime, state, logger),
+            completed: () => handleCompressionCompleted(part, eventTime, state, logger),
+            running: () => {},
         }
-        if (toolState.status === "completed") {
-            await handleCompressionCompleted(part, eventTime, state, logger)
-            return
-        }
-        if (toolState.status === "running") return
-
-        cleanupCompressionStart(part, state)
+        const handler = statusHandlers[toolState.status]
+        if (handler) await handler()
+        else cleanupCompressionStart(part, state)
     }
 }
 

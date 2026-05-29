@@ -17,31 +17,20 @@ export async function fetchSessionMessages(client: OpencodeClient, sessionId: st
 export function buildSearchContext(state: SessionState, rawMessages: WithParts[]): SearchContext {
     const rawMessagesById = new Map<string, WithParts>()
     const rawIndexById = new Map<string, number>()
-    for (const msg of rawMessages) {
-        rawMessagesById.set(msg.info.id, msg)
-    }
     for (let index = 0; index < rawMessages.length; index++) {
-        const message = rawMessages[index]
-        if (!message) {
-            continue
-        }
-        rawIndexById.set(message.info.id, index)
+        const msg = rawMessages[index]
+        if (!msg) continue
+        rawMessagesById.set(msg.info.id, msg)
+        rawIndexById.set(msg.info.id, index)
     }
 
     const summaryByBlockId = new Map()
     for (const [blockId, block] of state.prune.messages.blocksById) {
-        if (!block.active) {
-            continue
-        }
+        if (!block.active) continue
         summaryByBlockId.set(blockId, block)
     }
 
-    return {
-        rawMessages,
-        rawMessagesById,
-        rawIndexById,
-        summaryByBlockId,
-    }
+    return { rawMessages, rawMessagesById, rawIndexById, summaryByBlockId }
 }
 
 function parseAndValidateBoundaryId(
@@ -79,6 +68,10 @@ function validateBoundaryOrder(
     }
 }
 
+function formatBoundaryIssues(issues: string[]): string {
+    return issues.length === 1 ? issues[0] : issues.map((issue) => `- ${issue}`).join("\n")
+}
+
 export function resolveBoundaryIds(
     context: SearchContext,
     state: SessionState,
@@ -92,23 +85,11 @@ export function resolveBoundaryIds(
     const endResult = parseAndValidateBoundaryId(endId, "endId", lookup, issues)
 
     if (startResult && endResult) {
-        validateBoundaryOrder(
-            startResult.reference,
-            endResult.reference,
-            startResult.parsed.ref,
-            endResult.parsed.ref,
-            issues,
-        )
+        validateBoundaryOrder(startResult.reference, endResult.reference, startResult.parsed.ref, endResult.parsed.ref, issues)
     }
 
-    if (issues.length > 0) {
-        throw new Error(
-            issues.length === 1 ? issues[0] : issues.map((issue) => `- ${issue}`).join("\n"),
-        )
-    }
-
-    if (!startResult || !endResult) {
-        throw new Error("Failed to resolve boundary IDs")
+    if (!startResult || !endResult || issues.length > 0) {
+        throw new Error(issues.length > 0 ? formatBoundaryIssues(issues) : "Failed to resolve boundary IDs")
     }
 
     return { startReference: startResult.reference, endReference: endResult.reference }
@@ -125,43 +106,19 @@ function collectMessagesAndToolsInRange(
     startRawIndex: number,
     endRawIndex: number,
 ): RangeCollection {
-    const messageIds: string[] = []
-    const messageSeen = new Set<string>()
-    const toolIds: string[] = []
-    const toolSeen = new Set<string>()
-    const messageTokenById = new Map<string, number>()
+    const slice = context.rawMessages.slice(startRawIndex, endRawIndex + 1)
+    const validMessages = slice.filter((msg): msg is WithParts => !!msg && !isIgnoredUserMessage(msg))
 
-    for (let index = startRawIndex; index <= endRawIndex; index++) {
-        const rawMessage = context.rawMessages[index]
-        if (!rawMessage) {
-            continue
-        }
-        if (isIgnoredUserMessage(rawMessage)) {
-            continue
-        }
-
-        const messageId = rawMessage.info.id
-        if (!messageSeen.has(messageId)) {
-            messageSeen.add(messageId)
-            messageIds.push(messageId)
-        }
-
-        if (!messageTokenById.has(messageId)) {
-            messageTokenById.set(messageId, countAllMessageTokens(rawMessage))
-        }
-
-        const parts = Array.isArray(rawMessage.parts) ? rawMessage.parts : []
-        for (const part of parts) {
-            if (part.type !== "tool" || !part.callID) {
-                continue
-            }
-            if (toolSeen.has(part.callID)) {
-                continue
-            }
-            toolSeen.add(part.callID)
-            toolIds.push(part.callID)
-        }
-    }
+    const messageIds = [...new Set(validMessages.map((m) => m.info.id))]
+    const messageTokenById = new Map(validMessages.map((m) => [m.info.id, countAllMessageTokens(m)]))
+    const toolIds = [
+        ...new Set(
+            validMessages
+                .flatMap((m) => (Array.isArray(m.parts) ? m.parts : []))
+                .filter((p) => p.type === "tool" && !!(p as { callID?: string }).callID)
+                .map((p) => (p as { callID: string }).callID),
+        ),
+    ]
 
     return { messageIds, messageTokenById, toolIds }
 }
@@ -279,6 +236,17 @@ function addMessageBoundaryRefs(
     }
 }
 
+function buildBlockRefIfValid(
+    summary: { blockId: number; anchorMessageId: string },
+    context: SearchContext,
+): BoundaryReference | null {
+    const anchorMessage = context.rawMessagesById.get(summary.anchorMessageId)
+    if (!anchorMessage || isIgnoredUserMessage(anchorMessage)) return null
+    const rawIndex = context.rawIndexById.get(summary.anchorMessageId)
+    if (rawIndex === undefined) return null
+    return { kind: "compressed-block", rawIndex, blockId: summary.blockId, anchorMessageId: summary.anchorMessageId }
+}
+
 function addCompressedBlockBoundaryRefs(
     context: SearchContext,
     lookup: Map<string, BoundaryReference>,
@@ -287,23 +255,10 @@ function addCompressedBlockBoundaryRefs(
         (a, b) => a.blockId - b.blockId,
     )
     for (const summary of summaries) {
-        const anchorMessage = context.rawMessagesById.get(summary.anchorMessageId)
-        if (!anchorMessage || isIgnoredUserMessage(anchorMessage)) {
-            continue
-        }
-        const rawIndex = context.rawIndexById.get(summary.anchorMessageId)
-        if (rawIndex === undefined) {
-            continue
-        }
         const blockRef = formatBlockRef(summary.blockId)
-        if (!lookup.has(blockRef)) {
-            lookup.set(blockRef, {
-                kind: "compressed-block",
-                rawIndex,
-                blockId: summary.blockId,
-                anchorMessageId: summary.anchorMessageId,
-            })
-        }
+        if (lookup.has(blockRef)) continue
+        const ref = buildBlockRefIfValid(summary, context)
+        if (ref) lookup.set(blockRef, ref)
     }
 }
 

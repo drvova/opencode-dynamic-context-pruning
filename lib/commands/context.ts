@@ -49,7 +49,7 @@ import { isMessageCompacted } from "../state/utils"
 import { countTokens } from "../token-counting"
 import { extractCompletedToolOutput } from "../token-counting"
 import { getCurrentParams } from "../token-params"
-import type { AssistantMessage, OpencodeClient, TextPart, ToolPart } from "@opencode-ai/sdk/v2"
+import type { AssistantMessage, OpencodeClient, Part, TextPart, ToolPart } from "@opencode-ai/sdk/v2"
 
 export interface ContextCommandContext {
     client: OpencodeClient
@@ -98,17 +98,19 @@ function createEmptyBreakdown(prunedTokens: number): TokenBreakdown {
     }
 }
 
+function hasTokenData(assistant: AssistantMessage): boolean {
+    return (
+        (assistant.tokens?.input ?? 0) > 0 ||
+        (assistant.tokens?.cache?.read ?? 0) > 0 ||
+        (assistant.tokens?.cache?.write ?? 0) > 0
+    )
+}
+
 function findFirstAssistant(messages: WithParts[]): AssistantMessage | undefined {
     for (const msg of messages) {
         if (msg.info.role === "assistant") {
             const assistantInfo = msg.info as AssistantMessage
-            if (
-                assistantInfo.tokens?.input > 0 ||
-                assistantInfo.tokens?.cache?.read > 0 ||
-                assistantInfo.tokens?.cache?.write > 0
-            ) {
-                return assistantInfo
-            }
+            if (hasTokenData(assistantInfo)) return assistantInfo
         }
     }
     return undefined
@@ -127,6 +129,37 @@ function findLastAssistant(messages: WithParts[]): AssistantMessage | undefined 
     return undefined
 }
 
+function trackToolPartIds(
+    part: ToolPart,
+    isCompacted: boolean,
+    isMessagePruned: boolean,
+    state: SessionState,
+    allToolIds: Set<string>,
+    activeToolIds: Set<string>,
+    prunedByMessageToolIds: Set<string>,
+): void {
+    if (!part.callID) return
+    allToolIds.add(part.callID)
+    if (!isCompacted) activeToolIds.add(part.callID)
+    if (isMessagePruned) prunedByMessageToolIds.add(part.callID)
+}
+
+function stringifyInput(input: unknown): string {
+    return typeof input === "string" ? input : JSON.stringify(input)
+}
+
+function collectToolContent(
+    part: ToolPart,
+    state: SessionState,
+    toolInputParts: string[],
+    toolOutputParts: string[],
+): void {
+    if (!part.callID || state.prune.tools.has(part.callID)) return
+    if (part.state?.input) toolInputParts.push(stringifyInput(part.state.input))
+    const outputStr = extractCompletedToolOutput(part)
+    if (outputStr !== undefined) toolOutputParts.push(outputStr)
+}
+
 function collectToolPart(
     part: ToolPart,
     isCompacted: boolean,
@@ -138,31 +171,8 @@ function collectToolPart(
     toolInputParts: string[],
     toolOutputParts: string[],
 ): void {
-    if (part.callID) {
-        allToolIds.add(part.callID)
-        if (!isCompacted) {
-            activeToolIds.add(part.callID)
-        }
-        if (isMessagePruned) {
-            prunedByMessageToolIds.add(part.callID)
-        }
-    }
-
-    const isPruned = part.callID && state.prune.tools.has(part.callID)
-    if (!isCompacted && !isPruned) {
-        if (part.state?.input) {
-            const inputStr =
-                typeof part.state.input === "string"
-                    ? part.state.input
-                    : JSON.stringify(part.state.input)
-            toolInputParts.push(inputStr)
-        }
-
-        const outputStr = extractCompletedToolOutput(part)
-        if (outputStr !== undefined) {
-            toolOutputParts.push(outputStr)
-        }
-    }
+    trackToolPartIds(part, isCompacted, isMessagePruned, state, allToolIds, activeToolIds, prunedByMessageToolIds)
+    if (!isCompacted) collectToolContent(part, state, toolInputParts, toolOutputParts)
 }
 
 function collectUserTextPart(
@@ -178,6 +188,37 @@ function collectUserTextPart(
     userTextParts.push(text)
     if (!foundFirstUser) {
         return firstUserText + text
+    }
+    return firstUserText
+}
+
+function processPart(
+    part: Part,
+    msg: WithParts,
+    isCompacted: boolean,
+    isMessagePruned: boolean,
+    isIgnoredUser: boolean,
+    foundFirstUser: boolean,
+    state: SessionState,
+    allToolIds: Set<string>,
+    activeToolIds: Set<string>,
+    prunedByMessageToolIds: Set<string>,
+    toolInputParts: string[],
+    toolOutputParts: string[],
+    userTextParts: string[],
+    firstUserText: string,
+): string {
+    if (part.type === "tool") {
+        collectToolPart(
+            part as ToolPart, isCompacted, isMessagePruned, state,
+            allToolIds, activeToolIds, prunedByMessageToolIds,
+            toolInputParts, toolOutputParts,
+        )
+    } else if (part.type === "text" && msg.info.role === "user") {
+        firstUserText = collectUserTextPart(
+            part as TextPart, isCompacted, isIgnoredUser, foundFirstUser,
+            userTextParts, firstUserText,
+        )
     }
     return firstUserText
 }
@@ -205,31 +246,11 @@ function collectMessageParts(
         const isIgnoredUser = isIgnoredUserMessage(msg)
 
         for (const part of parts) {
-            if (part.type === "tool") {
-                collectToolPart(
-                    part as ToolPart,
-                    isCompacted,
-                    isMessagePruned,
-                    state,
-                    allToolIds,
-                    activeToolIds,
-                    prunedByMessageToolIds,
-                    toolInputParts,
-                    toolOutputParts,
-                )
-            } else if (
-                part.type === "text" &&
-                msg.info.role === "user"
-            ) {
-                firstUserText = collectUserTextPart(
-                    part as TextPart,
-                    isCompacted,
-                    isIgnoredUser,
-                    foundFirstUser,
-                    userTextParts,
-                    firstUserText,
-                )
-            }
+            firstUserText = processPart(
+                part, msg, isCompacted, isMessagePruned, isIgnoredUser, foundFirstUser,
+                state, allToolIds, activeToolIds, prunedByMessageToolIds,
+                toolInputParts, toolOutputParts, userTextParts, firstUserText,
+            )
         }
 
         if (msg.info.role === "user" && !isIgnoredUser && !foundFirstUser) {
@@ -249,37 +270,31 @@ function collectMessageParts(
     }
 }
 
+function countPrunedMessages(parts: MessagePartsResult, state: SessionState): number {
+    let count = 0
+    for (const [id, entry] of state.prune.messages.byMessageId) {
+        if (parts.allMessageIds.has(id) && entry.activeBlockIds.length > 0) count++
+    }
+    return count
+}
+
 function applyPruningStats(
     breakdown: TokenBreakdown,
     state: SessionState,
     parts: MessagePartsResult,
 ): void {
-    const prunedByToolIds = new Set<string>()
-    for (const id of parts.allToolIds) {
-        if (state.prune.tools.has(id)) {
-            prunedByToolIds.add(id)
-        }
-    }
-
-    const prunedToolIds = new Set<string>([
-        ...prunedByToolIds,
-        ...parts.prunedByMessageToolIds,
-    ])
+    const prunedByToolIds = new Set(
+        [...parts.allToolIds].filter((id) => state.prune.tools.has(id)),
+    )
+    const prunedToolIds = new Set([...prunedByToolIds, ...parts.prunedByMessageToolIds])
     const toolsInContextCount = [...parts.activeToolIds].filter(
         (id) => !prunedByToolIds.has(id),
     ).length
 
-    let prunedMessageCount = 0
-    for (const [id, entry] of state.prune.messages.byMessageId) {
-        if (parts.allMessageIds.has(id) && entry.activeBlockIds.length > 0) {
-            prunedMessageCount++
-        }
-    }
-
     breakdown.toolCount = parts.allToolIds.size
     breakdown.toolsInContextCount = toolsInContextCount
     breakdown.prunedToolCount = prunedToolIds.size
-    breakdown.prunedMessageCount = prunedMessageCount
+    breakdown.prunedMessageCount = countPrunedMessages(parts, state)
 }
 
 function applyTokenBreakdown(
@@ -307,16 +322,22 @@ function applyTokenBreakdown(
     )
 }
 
+function sumAssistantTokens(assistant: AssistantMessage | undefined): number {
+    if (!assistant?.tokens) return 0
+    return (
+        (assistant.tokens.input ?? 0) +
+        (assistant.tokens.output ?? 0) +
+        (assistant.tokens.reasoning ?? 0) +
+        (assistant.tokens.cache?.read ?? 0) +
+        (assistant.tokens.cache?.write ?? 0)
+    )
+}
+
 function analyzeTokens(state: SessionState, messages: WithParts[]): TokenBreakdown {
     const breakdown = createEmptyBreakdown(state.stats.totalPruneTokens)
     const firstAssistant = findFirstAssistant(messages)
     const lastAssistant = findLastAssistant(messages)
-    breakdown.total =
-        (lastAssistant?.tokens?.input || 0) +
-        (lastAssistant?.tokens?.output || 0) +
-        (lastAssistant?.tokens?.reasoning || 0) +
-        (lastAssistant?.tokens?.cache?.read || 0) +
-        (lastAssistant?.tokens?.cache?.write || 0)
+    breakdown.total = sumAssistantTokens(lastAssistant)
     const parts = collectMessageParts(state, messages)
     applyPruningStats(breakdown, state, parts)
     applyTokenBreakdown(breakdown, firstAssistant, parts)
@@ -330,10 +351,37 @@ function createBar(value: number, maxValue: number, width: number, char: string 
     return bar
 }
 
+function formatBarRow(
+    cat: { label: string; value: number; char: string },
+    maxLabelLen: number,
+    barWidth: number,
+    total: number,
+): string {
+    const bar = createBar(cat.value, total, barWidth, cat.char)
+    const percentage = total > 0 ? ((cat.value / total) * 100).toFixed(1) : "0.0"
+    const labelWithPct = `${cat.label.padEnd(maxLabelLen)} ${percentage.padStart(5)}% `
+    const valueStr = formatTokenCount(cat.value).padStart(13)
+    return `${labelWithPct}│${bar.padEnd(barWidth)}│${valueStr}`
+}
+
+function formatPruningSummary(breakdown: TokenBreakdown): string[] {
+    const lines: string[] = []
+    if (breakdown.prunedTokens > 0) {
+        const pruned: string[] = []
+        if (breakdown.prunedToolCount > 0) pruned.push(`${breakdown.prunedToolCount} tools`)
+        if (breakdown.prunedMessageCount > 0) pruned.push(`${breakdown.prunedMessageCount} messages`)
+        lines.push(`  Pruned:          ${pruned.join(", ")} (~${formatTokenCount(breakdown.prunedTokens)})`)
+        lines.push(`  Current context: ~${formatTokenCount(breakdown.total)}`)
+        lines.push(`  Without DCP:     ~${formatTokenCount(breakdown.total + breakdown.prunedTokens)}`)
+    } else {
+        lines.push(`  Current context: ~${formatTokenCount(breakdown.total)}`)
+    }
+    return lines
+}
+
 function formatContextMessage(breakdown: TokenBreakdown): string {
     const lines: string[] = []
     const barWidth = 30
-
     const toolsLabel = `Tools (${breakdown.toolsInContextCount})`
 
     const categories = [
@@ -354,35 +402,14 @@ function formatContextMessage(breakdown: TokenBreakdown): string {
     lines.push("")
 
     for (const cat of categories) {
-        const bar = createBar(cat.value, breakdown.total, barWidth, cat.char)
-        const percentage =
-            breakdown.total > 0 ? ((cat.value / breakdown.total) * 100).toFixed(1) : "0.0"
-        const labelWithPct = `${cat.label.padEnd(maxLabelLen)} ${percentage.padStart(5)}% `
-        const valueStr = formatTokenCount(cat.value).padStart(13)
-        lines.push(`${labelWithPct}│${bar.padEnd(barWidth)}│${valueStr}`)
+        lines.push(formatBarRow(cat, maxLabelLen, barWidth, breakdown.total))
     }
 
     lines.push("")
     lines.push("─".repeat(60))
     lines.push("")
-
     lines.push("Summary:")
-
-    if (breakdown.prunedTokens > 0) {
-        const withoutPruning = breakdown.total + breakdown.prunedTokens
-        const pruned = []
-        if (breakdown.prunedToolCount > 0) pruned.push(`${breakdown.prunedToolCount} tools`)
-        if (breakdown.prunedMessageCount > 0)
-            pruned.push(`${breakdown.prunedMessageCount} messages`)
-        lines.push(
-            `  Pruned:          ${pruned.join(", ")} (~${formatTokenCount(breakdown.prunedTokens)})`,
-        )
-        lines.push(`  Current context: ~${formatTokenCount(breakdown.total)}`)
-        lines.push(`  Without DCP:     ~${formatTokenCount(withoutPruning)}`)
-    } else {
-        lines.push(`  Current context: ~${formatTokenCount(breakdown.total)}`)
-    }
-
+    lines.push(...formatPruningSummary(breakdown))
     lines.push("")
 
     return lines.join("\n")

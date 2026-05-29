@@ -97,6 +97,19 @@ function truncateExtractedSection(
     return message.slice(0, index) + truncateToastSummary(extracted, maxChars)
 }
 
+function resolveNotificationMessage(
+    config: PluginConfig,
+    state: SessionState,
+    reason: PruneReason | undefined,
+    pruneToolIds: string[],
+    toolMetadata: Map<string, ToolParameterEntry>,
+    workingDirectory: string,
+): string {
+    return config.pruneNotification === "minimal"
+        ? buildMinimalMessage(state, reason)
+        : buildDetailedMessage(state, reason, pruneToolIds, toolMetadata, workingDirectory)
+}
+
 async function sendUnifiedNotification(
     client: OpencodeClient,
     logger: Logger,
@@ -109,25 +122,15 @@ async function sendUnifiedNotification(
     params: PromptParams,
     workingDirectory: string,
 ): Promise<boolean> {
-    const hasPruned = pruneToolIds.length > 0
-    if (!hasPruned) {
-        return false
-    }
+    if (pruneToolIds.length === 0) return false
+    if (config.pruneNotification === "off") return false
 
-    if (config.pruneNotification === "off") {
-        return false
-    }
-
-    const message =
-        config.pruneNotification === "minimal"
-            ? buildMinimalMessage(state, reason)
-            : buildDetailedMessage(state, reason, pruneToolIds, toolMetadata, workingDirectory)
+    const message = resolveNotificationMessage(config, state, reason, pruneToolIds, toolMetadata, workingDirectory)
 
     if (config.pruneNotificationType === "toast") {
         let toastMessage = truncateExtractedSection(message)
         toastMessage =
             config.pruneNotification === "minimal" ? toastMessage : truncateToastBody(toastMessage)
-
         await client.tui.showToast({
             title: "DCP: Compress Notification",
             message: toastMessage,
@@ -179,35 +182,17 @@ function collectCompressedBlockIds(
     entries: CompressionNotificationEntry[],
     state: SessionState,
 ): { messageIds: string[]; toolIds: string[] } {
-    const messageIds: string[] = []
-    const toolIds: string[] = []
-    const seenMessageIds = new Set<string>()
-    const seenToolIds = new Set<string>()
+    const messageIds = new Set<string>()
+    const toolIds = new Set<string>()
 
     for (const entry of entries) {
         const compressionBlock = state.prune.messages.blocksById.get(entry.blockId)
-        if (!compressionBlock) {
-            continue
-        }
-
-        for (const messageId of compressionBlock.directMessageIds) {
-            if (seenMessageIds.has(messageId)) {
-                continue
-            }
-            seenMessageIds.add(messageId)
-            messageIds.push(messageId)
-        }
-
-        for (const toolId of compressionBlock.directToolIds) {
-            if (seenToolIds.has(toolId)) {
-                continue
-            }
-            seenToolIds.add(toolId)
-            toolIds.push(toolId)
-        }
+        if (!compressionBlock) continue
+        for (const id of compressionBlock.directMessageIds) messageIds.add(id)
+        for (const id of compressionBlock.directToolIds) toolIds.add(id)
     }
 
-    return { messageIds, toolIds }
+    return { messageIds: [...messageIds], toolIds: [...toolIds] }
 }
 
 function resolveCompressionTopic(
@@ -368,6 +353,11 @@ export async function sendCompressNotification(
     return true
 }
 
+function buildModelParam(params: PromptParams): { providerID: string; modelID: string } | undefined {
+    if (!params.providerId || !params.modelId) return undefined
+    return { providerID: params.providerId, modelID: params.modelId }
+}
+
 export async function sendIgnoredMessage(
     client: OpencodeClient,
     sessionID: string,
@@ -375,30 +365,14 @@ export async function sendIgnoredMessage(
     params: PromptParams,
     logger: Logger,
 ): Promise<void> {
-    const agent = params.agent || undefined
-    const variant = params.variant || undefined
-    const model =
-        params.providerId && params.modelId
-            ? {
-                  providerID: params.providerId,
-                  modelID: params.modelId,
-              }
-            : undefined
-
     try {
         await client.session.prompt({
-            sessionID: sessionID,
+            sessionID,
             noReply: true,
-            agent: agent,
-            model: model,
-            variant: variant,
-            parts: [
-                {
-                    type: "text",
-                    text: text,
-                    ignored: true,
-                },
-            ],
+            agent: params.agent || undefined,
+            model: buildModelParam(params),
+            variant: params.variant || undefined,
+            parts: [{ type: "text", text, ignored: true }],
         })
     } catch (error: unknown) {
         logger.error("Failed to send notification", { error: error instanceof Error ? error.message : String(error) })

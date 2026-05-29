@@ -83,19 +83,20 @@ export function findLastCompactionTimestamp(messages: WithParts[]): number {
     return 0
 }
 
+function countStepStarts(parts: WithParts["parts"]): number {
+    let count = 0
+    for (const part of parts) {
+        if (part.type === "step-start") count++
+    }
+    return count
+}
+
 export function countTurns(state: SessionState, messages: WithParts[]): number {
     let turnCount = 0
     for (const msg of messages) {
-        if (!isMessageWithInfo(msg)) {
-            continue
-        }
+        if (!isMessageWithInfo(msg)) continue
         const parts = getMessageParts(state, msg)
-        if (!parts) continue
-        for (const part of parts) {
-            if (part.type === "step-start") {
-                turnCount++
-            }
-        }
+        if (parts) turnCount += countStepStarts(parts)
     }
     return turnCount
 }
@@ -158,36 +159,13 @@ function loadByMessageIdEntries(
     state: PruneMessagesState,
     byMessageId: Record<string, PrunedMessageEntry>,
 ): void {
-    if (!byMessageId || typeof byMessageId !== "object") {
-        return
-    }
+    if (!byMessageId || typeof byMessageId !== "object") return
     for (const [messageId, entry] of Object.entries(byMessageId)) {
-        if (!entry || typeof entry !== "object") {
-            continue
-        }
-        const tokenCount = typeof entry.tokenCount === "number" ? entry.tokenCount : 0
-        const allBlockIds = Array.isArray(entry.allBlockIds)
-            ? [
-                  ...new Set(
-                      entry.allBlockIds.filter(
-                          (id): id is number => Number.isInteger(id) && id > 0,
-                      ),
-                  ),
-              ]
-            : []
-        const activeBlockIds = Array.isArray(entry.activeBlockIds)
-            ? [
-                  ...new Set(
-                      entry.activeBlockIds.filter(
-                          (id): id is number => Number.isInteger(id) && id > 0,
-                      ),
-                  ),
-              ]
-            : []
+        if (!entry || typeof entry !== "object") continue
         state.byMessageId.set(messageId, {
-            tokenCount,
-            allBlockIds,
-            activeBlockIds,
+            tokenCount: typeof entry.tokenCount === "number" ? entry.tokenCount : 0,
+            allBlockIds: filterNumberArray(entry.allBlockIds),
+            activeBlockIds: filterNumberArray(entry.activeBlockIds),
         })
     }
 }
@@ -284,23 +262,19 @@ function buildBlockEntry(
     }
 }
 
+function isValidBlockId(value: unknown): value is number {
+    return typeof value === "number" && Number.isInteger(value) && value > 0
+}
+
 function loadBlocksByIdEntries(
     state: PruneMessagesState,
     blocksById: Record<string, CompressionBlock>,
 ): void {
-    if (!blocksById || typeof blocksById !== "object") {
-        return
-    }
+    if (!blocksById || typeof blocksById !== "object") return
     for (const [blockIdStr, block] of Object.entries(blocksById)) {
         const blockId = Number.parseInt(blockIdStr, 10)
-        if (
-            !Number.isInteger(blockId) ||
-            blockId < 1 ||
-            !block ||
-            typeof block !== "object"
-        ) {
-            continue
-        }
+        if (!Number.isInteger(blockId) || blockId < 1) continue
+        if (!block || typeof block !== "object") continue
         state.blocksById.set(blockId, buildBlockEntry(blockId, block))
     }
 }
@@ -324,21 +298,16 @@ function loadActiveByAnchorMessageIdFromRecord(
     state: PruneMessagesState,
     activeByAnchorMessageId: Record<string, number>,
 ): void {
-    if (!activeByAnchorMessageId || typeof activeByAnchorMessageId !== "object") {
-        return
-    }
-    for (const [anchorMessageId, blockId] of Object.entries(
-        activeByAnchorMessageId,
-    )) {
-        if (
-            typeof blockId !== "number" ||
-            !Number.isInteger(blockId) ||
-            blockId < 1
-        ) {
-            continue
-        }
+    if (!activeByAnchorMessageId || typeof activeByAnchorMessageId !== "object") return
+    for (const [anchorMessageId, blockId] of Object.entries(activeByAnchorMessageId)) {
+        if (!isValidBlockId(blockId)) continue
         state.activeByAnchorMessageId.set(anchorMessageId, blockId)
     }
+}
+
+function updateCounters(state: PruneMessagesState, blockId: number, block: CompressionBlock): void {
+    if (blockId >= state.nextBlockId) state.nextBlockId = blockId + 1
+    if (block.runId >= state.nextRunId) state.nextRunId = block.runId + 1
 }
 
 function reconcileBlocksState(state: PruneMessagesState): void {
@@ -349,12 +318,7 @@ function reconcileBlocksState(state: PruneMessagesState): void {
                 state.activeByAnchorMessageId.set(block.anchorMessageId, blockId)
             }
         }
-        if (blockId >= state.nextBlockId) {
-            state.nextBlockId = blockId + 1
-        }
-        if (block.runId >= state.nextRunId) {
-            state.nextRunId = block.runId + 1
-        }
+        updateCounters(state, blockId, block)
     }
 }
 
@@ -374,32 +338,38 @@ export function loadPruneMessagesState(
     return state
 }
 
+interface NudgeState {
+    anchors: Set<string>
+    pendingUserMessageId: string | null
+}
+
+function handleUserNudge(message: WithParts, ns: NudgeState): void {
+    if (!isIgnoredUserMessage(message)) ns.pendingUserMessageId = message.info.id
+}
+
+function handleAssistantNudge(message: WithParts, ns: NudgeState): void {
+    if (!ns.pendingUserMessageId) return
+    ns.anchors.add(message.info.id)
+    ns.anchors.add(ns.pendingUserMessageId)
+    ns.pendingUserMessageId = null
+}
+
 export function collectTurnNudgeAnchors(messages: WithParts[]): Set<string> {
-    const anchors = new Set<string>()
-    let pendingUserMessageId: string | null = null
+    const ns: NudgeState = { anchors: new Set(), pendingUserMessageId: null }
 
     for (let i = messages.length - 1; i >= 0; i--) {
         const message = messages[i]
-
-        if (messageHasCompress(message)) {
-            break
-        }
-
+        if (messageHasCompress(message)) break
         if (message.info.role === "user") {
-            if (!isIgnoredUserMessage(message)) {
-                pendingUserMessageId = message.info.id
-            }
+            handleUserNudge(message, ns)
             continue
         }
-
-        if (message.info.role === "assistant" && pendingUserMessageId) {
-            anchors.add(message.info.id)
-            anchors.add(pendingUserMessageId)
-            pendingUserMessageId = null
+        if (message.info.role === "assistant") {
+            handleAssistantNudge(message, ns)
         }
     }
 
-    return anchors
+    return ns.anchors
 }
 
 export function getActiveSummaryTokenUsage(state: SessionState): number {

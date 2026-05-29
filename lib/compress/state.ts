@@ -32,20 +32,15 @@ export function attachCompressionDuration(
     callId: string,
     durationMs: number,
 ): number {
-    if (typeof durationMs !== "number" || !Number.isFinite(durationMs)) {
-        return 0
-    }
+    if (typeof durationMs !== "number" || !Number.isFinite(durationMs)) return 0
 
     let updates = 0
     for (const block of messagesState.blocksById.values()) {
-        if (block.compressMessageId !== messageId || block.compressCallId !== callId) {
-            continue
+        if (block.compressMessageId === messageId && block.compressCallId === callId) {
+            block.durationMs = durationMs
+            updates++
         }
-
-        block.durationMs = durationMs
-        updates++
     }
-
     return updates
 }
 
@@ -85,28 +80,40 @@ function buildEffectiveIdSets(
     return { effectiveMessageIds, effectiveToolIds }
 }
 
-function collectInitiallyActive(
+function collectInitiallyActiveMessages(
     messagesState: PruneMessagesState,
     effectiveMessageIds: Set<string>,
-): { initiallyActiveMessages: Set<string>; initiallyActiveToolIds: Set<string> } {
-    const initiallyActiveMessages = new Set<string>()
+): Set<string> {
+    const result = new Set<string>()
     for (const messageId of effectiveMessageIds) {
         const entry = messagesState.byMessageId.get(messageId)
-        if (entry && entry.activeBlockIds.length > 0) {
-            initiallyActiveMessages.add(messageId)
-        }
+        if (entry && entry.activeBlockIds.length > 0) result.add(messageId)
     }
+    return result
+}
 
-    const initiallyActiveToolIds = new Set<string>()
+function collectInitiallyActiveToolIds(
+    messagesState: PruneMessagesState,
+): Set<string> {
+    const result = new Set<string>()
     for (const activeBlockId of messagesState.activeBlockIds) {
         const activeBlock = messagesState.blocksById.get(activeBlockId)
         if (!activeBlock || !activeBlock.active) continue
         for (const toolId of activeBlock.effectiveToolIds) {
-            initiallyActiveToolIds.add(toolId)
+            result.add(toolId)
         }
     }
+    return result
+}
 
-    return { initiallyActiveMessages, initiallyActiveToolIds }
+function collectInitiallyActive(
+    messagesState: PruneMessagesState,
+    effectiveMessageIds: Set<string>,
+): { initiallyActiveMessages: Set<string>; initiallyActiveToolIds: Set<string> } {
+    return {
+        initiallyActiveMessages: collectInitiallyActiveMessages(messagesState, effectiveMessageIds),
+        initiallyActiveToolIds: collectInitiallyActiveToolIds(messagesState),
+    }
 }
 
 function makeCompressionBlock(
@@ -147,6 +154,29 @@ function makeCompressionBlock(
     }
 }
 
+function deactivateConsumedBlock(
+    messagesState: PruneMessagesState,
+    consumedBlockId: number,
+    blockId: number,
+    deactivatedAt: number,
+): void {
+    const consumedBlock = messagesState.blocksById.get(consumedBlockId)
+    if (!consumedBlock || !consumedBlock.active) return
+
+    consumedBlock.active = false
+    consumedBlock.deactivatedAt = deactivatedAt
+    consumedBlock.deactivatedByBlockId = blockId
+    if (!consumedBlock.parentBlockIds.includes(blockId)) {
+        consumedBlock.parentBlockIds.push(blockId)
+    }
+
+    messagesState.activeBlockIds.delete(consumedBlockId)
+    const mappedBlockId = messagesState.activeByAnchorMessageId.get(consumedBlock.anchorMessageId)
+    if (mappedBlockId === consumedBlockId) {
+        messagesState.activeByAnchorMessageId.delete(consumedBlock.anchorMessageId)
+    }
+}
+
 function registerAndDeactivateBlock(
     messagesState: PruneMessagesState,
     blockId: number,
@@ -160,20 +190,19 @@ function registerAndDeactivateBlock(
 
     const deactivatedAt = Date.now()
     for (const consumedBlockId of consumed) {
-        const consumedBlock = messagesState.blocksById.get(consumedBlockId)
-        if (!consumedBlock || !consumedBlock.active) continue
+        deactivateConsumedBlock(messagesState, consumedBlockId, blockId, deactivatedAt)
+    }
+}
 
-        consumedBlock.active = false
-        consumedBlock.deactivatedAt = deactivatedAt
-        consumedBlock.deactivatedByBlockId = blockId
-        if (!consumedBlock.parentBlockIds.includes(blockId)) {
-            consumedBlock.parentBlockIds.push(blockId)
-        }
-
-        messagesState.activeBlockIds.delete(consumedBlockId)
-        const mappedBlockId = messagesState.activeByAnchorMessageId.get(consumedBlock.anchorMessageId)
-        if (mappedBlockId === consumedBlockId) {
-            messagesState.activeByAnchorMessageId.delete(consumedBlock.anchorMessageId)
+function removeBlockFromEntries(
+    messagesState: PruneMessagesState,
+    consumedBlockId: number,
+    effectiveMessageIds: string[],
+): void {
+    for (const messageId of effectiveMessageIds) {
+        const entry = messagesState.byMessageId.get(messageId)
+        if (entry && entry.activeBlockIds.length > 0) {
+            entry.activeBlockIds = entry.activeBlockIds.filter((id) => id !== consumedBlockId)
         }
     }
 }
@@ -185,11 +214,7 @@ function cleanupConsumedFromEntries(
     for (const consumedBlockId of consumed) {
         const consumedBlock = messagesState.blocksById.get(consumedBlockId)
         if (!consumedBlock) continue
-        for (const messageId of consumedBlock.effectiveMessageIds) {
-            const entry = messagesState.byMessageId.get(messageId)
-            if (!entry || entry.activeBlockIds.length === 0) continue
-            entry.activeBlockIds = entry.activeBlockIds.filter((id) => id !== consumedBlockId)
-        }
+        removeBlockFromEntries(messagesState, consumedBlockId, consumedBlock.effectiveMessageIds)
     }
 }
 
@@ -221,11 +246,10 @@ function upsertMessageEntry(
     ensureBlockInEntry(existing, blockId)
 }
 
-function updateMessageEntries(
+function upsertSelectedEntries(
     messagesState: PruneMessagesState,
     blockId: number,
     selection: SelectionResolution,
-    effectiveMessageIds: Set<string>,
 ): void {
     for (const messageId of selection.messageIds) {
         upsertMessageEntry(
@@ -235,13 +259,59 @@ function updateMessageEntries(
             blockId,
         )
     }
+}
 
+function attachBlockToExistingEntries(
+    messagesState: PruneMessagesState,
+    blockId: number,
+    selection: SelectionResolution,
+    effectiveMessageIds: Set<string>,
+): void {
     for (const messageId of effectiveMessageIds) {
         if (selection.messageTokenById.has(messageId)) continue
         const existing = messagesState.byMessageId.get(messageId)
         if (!existing) continue
         ensureBlockInEntry(existing, blockId)
     }
+}
+
+function updateMessageEntries(
+    messagesState: PruneMessagesState,
+    blockId: number,
+    selection: SelectionResolution,
+    effectiveMessageIds: Set<string>,
+): void {
+    upsertSelectedEntries(messagesState, blockId, selection)
+    attachBlockToExistingEntries(messagesState, blockId, selection, effectiveMessageIds)
+}
+
+function computeNewlyCompressedMessages(
+    messagesState: PruneMessagesState,
+    effectiveMessageIds: Set<string>,
+    initiallyActiveMessages: Set<string>,
+): { compressedTokens: number; newlyCompressedMessageIds: string[] } {
+    let compressedTokens = 0
+    const newlyCompressedMessageIds: string[] = []
+    for (const messageId of effectiveMessageIds) {
+        const entry = messagesState.byMessageId.get(messageId)
+        if (!entry) continue
+        if (entry.activeBlockIds.length > 0 && !initiallyActiveMessages.has(messageId)) {
+            compressedTokens += entry.tokenCount
+            newlyCompressedMessageIds.push(messageId)
+        }
+    }
+    return { compressedTokens, newlyCompressedMessageIds }
+}
+
+function computeNewlyCompressedTools(
+    effectiveToolIds: Set<string>,
+    initiallyActiveToolIds: Set<string>,
+): string[] {
+    const newlyCompressedToolIds: string[] = []
+    for (const toolId of effectiveToolIds) {
+        if (!initiallyActiveToolIds.has(toolId)) newlyCompressedToolIds.push(toolId)
+    }
+    return newlyCompressedToolIds
 }
 
 function computeCompressionStats(
@@ -251,29 +321,10 @@ function computeCompressionStats(
     initiallyActiveMessages: Set<string>,
     initiallyActiveToolIds: Set<string>,
 ): { compressedTokens: number; newlyCompressedMessageIds: string[]; newlyCompressedToolIds: string[] } {
-    let compressedTokens = 0
-    const newlyCompressedMessageIds: string[] = []
-
-    for (const messageId of effectiveMessageIds) {
-        const entry = messagesState.byMessageId.get(messageId)
-        if (!entry) continue
-
-        const isNowActive = entry.activeBlockIds.length > 0
-        const wasActive = initiallyActiveMessages.has(messageId)
-
-        if (isNowActive && !wasActive) {
-            compressedTokens += entry.tokenCount
-            newlyCompressedMessageIds.push(messageId)
-        }
-    }
-
-    const newlyCompressedToolIds: string[] = []
-    for (const toolId of effectiveToolIds) {
-        if (!initiallyActiveToolIds.has(toolId)) {
-            newlyCompressedToolIds.push(toolId)
-        }
-    }
-
+    const { compressedTokens, newlyCompressedMessageIds } = computeNewlyCompressedMessages(
+        messagesState, effectiveMessageIds, initiallyActiveMessages,
+    )
+    const newlyCompressedToolIds = computeNewlyCompressedTools(effectiveToolIds, initiallyActiveToolIds)
     return { compressedTokens, newlyCompressedMessageIds, newlyCompressedToolIds }
 }
 
