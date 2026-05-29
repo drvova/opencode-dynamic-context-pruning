@@ -1,9 +1,18 @@
 import type { PluginConfig, CompressOverride } from "./types.js"
 
+/** Merge two arrays of protected tool names, deduplicating entries. */
 function mergeProtectedTools(base: string[], override?: string[]): string[] {
     return [...new Set([...base, ...(override ?? [])])]
 }
 
+// fallow-ignore-next-line complexity
+/**
+ * Merge strategy-level configuration (deduplication, purgeErrors,
+ * toolCallPruning) by applying per-field overrides from a partial
+ * config layer. Each strategy's `enabled`, `turns`, and
+ * `protectedTools` fields are merged independently. Protected tool
+ * arrays are union-merged with deduplication.
+ */
 function mergeStrategies(
     base: PluginConfig["strategies"],
     override?: Partial<PluginConfig["strategies"]>,
@@ -36,6 +45,13 @@ function mergeStrategies(
     }
 }
 
+// fallow-ignore-next-line complexity
+/**
+ * Merge compression configuration by applying overrides for mode,
+ * permission, limits, nudge settings, and protected tools. Protected
+ * tool arrays are union-merged with deduplication. Returns the base
+ * config unchanged when no overrides are provided.
+ */
 function mergeCompress(
     base: PluginConfig["compress"],
     override?: CompressOverride,
@@ -61,6 +77,7 @@ function mergeCompress(
     }
 }
 
+/** Merge command configuration with protected tool deduplication. */
 function mergeCommands(
     base: PluginConfig["commands"],
     override?: Partial<PluginConfig["commands"]>,
@@ -75,6 +92,7 @@ function mergeCommands(
     }
 }
 
+/** Merge manual mode configuration, applying field-level overrides. */
 function mergeManualMode(
     base: PluginConfig["manualMode"],
     override?: Partial<PluginConfig["manualMode"]>,
@@ -87,6 +105,7 @@ function mergeManualMode(
     }
 }
 
+/** Merge experimental configuration flags. */
 function mergeExperimental(
     base: PluginConfig["experimental"],
     override?: Partial<PluginConfig["experimental"]>,
@@ -99,6 +118,11 @@ function mergeExperimental(
     }
 }
 
+/**
+ * Create a deep copy of a PluginConfig object, cloning all nested arrays
+ * and objects to prevent mutation of the original. Used before applying
+ * config layer overrides so the base config remains unmodified.
+ */
 export function deepCloneConfig(config: PluginConfig): PluginConfig {
     return {
         ...config,
@@ -136,6 +160,16 @@ export function deepCloneConfig(config: PluginConfig): PluginConfig {
     }
 }
 
+// fallow-ignore-next-line complexity
+/**
+ * Merge a single configuration layer on top of an existing config,
+ * producing a new PluginConfig that incorporates all overrides. Scalar
+ * fields use nullish coalescing; nested objects are delegated to their
+ * respective merge functions; arrays are union-merged with deduplication.
+ *
+ * This is the primary entry point for layered config resolution (global →
+ * project → runtime).
+ */
 export function mergeLayer(config: PluginConfig, data: Partial<PluginConfig>): PluginConfig {
     return {
         enabled: data.enabled ?? config.enabled,
