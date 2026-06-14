@@ -6,7 +6,7 @@ import {
     renderMessagePriorityGuidance,
 } from "../../prompts/extensions/nudge"
 import type { RuntimePrompts } from "../../prompts/store"
-import type { UserMessage } from "@opencode-ai/sdk/v2"
+import type { UserMessage } from "@opencode-ai/sdk"
 import {
     type CompressionPriorityMap,
     type MessagePriority,

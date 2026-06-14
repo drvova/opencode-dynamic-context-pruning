@@ -1,7 +1,7 @@
 import type { CompressionBlock, SessionState, WithParts } from "../state"
 import type { Logger } from "../logger"
 import type { PluginConfig } from "../config"
-import type { Part, ToolStateCompleted } from "@opencode-ai/sdk/v2"
+import type { Part, ToolStateCompleted } from "@opencode-ai/sdk"
 import { isMessageCompacted } from "../state/utils"
 import { createSyntheticUserMessage, replaceBlockIdsWithBlocked } from "./utils"
 import { getLastUserMessage } from "./query"

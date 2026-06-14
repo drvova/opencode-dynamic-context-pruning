@@ -1,4 +1,4 @@
-import type { Part, TextPart, ReasoningPart, ToolPart, AssistantMessage } from "@opencode-ai/sdk/v2"
+import type { Part, TextPart, ReasoningPart, ToolPart, AssistantMessage } from "@opencode-ai/sdk"
 import type { WithParts } from "../state/types"
 
 interface MinimizedTextPart {

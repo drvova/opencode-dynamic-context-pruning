@@ -1,7 +1,7 @@
 import { parseBlockRef } from "../message-ids"
 import type { Logger } from "../logger"
 import type { PruneMessagesState, SessionState, WithParts } from "../state/types"
-import type { OpencodeClient } from "@opencode-ai/sdk/v2"
+import type { OpencodeClient } from "@opencode-ai/sdk"
 import { syncCompressionBlocks } from "../messages"
 import { getCurrentParams } from "../token-params"
 import { formatTokenCount } from "../ui/utils"

@@ -1,4 +1,4 @@
-import type { OpencodeClient, Part, ToolPart } from "@opencode-ai/sdk/v2"
+import type { OpencodeClient, Part, ToolPart } from "@opencode-ai/sdk"
 import type { SessionState, WithParts } from "../state"
 import { isIgnoredUserMessage } from "../messages/query"
 import {

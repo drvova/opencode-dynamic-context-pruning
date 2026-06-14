@@ -3,7 +3,7 @@
  * Shows pruning statistics for the current session and all-time totals.
  */
 
-import type { OpencodeClient } from "@opencode-ai/sdk/v2"
+import type { OpencodeClient } from "@opencode-ai/sdk"
 import type { Logger } from "../logger"
 import type { SessionState, WithParts } from "../state"
 import { sendIgnoredMessage } from "../ui/notification"

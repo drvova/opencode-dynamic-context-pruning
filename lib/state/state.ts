@@ -1,4 +1,4 @@
-import type { OpencodeClient } from "@opencode-ai/sdk/v2"
+import type { OpencodeClient } from "@opencode-ai/sdk"
 import type { SessionState, ToolParameterEntry, WithParts } from "./types"
 import type { Logger } from "../logger"
 import { applyPendingCompressionDurations } from "../compress/timing"
@@ -13,6 +13,7 @@ import {
     loadPruneMap,
     collectTurnNudgeAnchors,
 } from "./utils"
+import { resolveSessionId } from "./resolve"
 import { getLastUserMessage } from "../messages/query"
 
 // fallow-ignore-next-line complexity
@@ -31,9 +32,8 @@ export const checkSession = async (
     const lastSessionId = lastUserMessage.info.sessionID
 
     if (state.sessionId === null || state.sessionId !== lastSessionId) {
-        logger.info(`Session changed: ${state.sessionId} -> ${lastSessionId}`)
         try {
-            await ensureSessionInitialized(
+            const ok = await ensureSessionInitialized(
                 client,
                 state,
                 lastSessionId,
@@ -41,6 +41,9 @@ export const checkSession = async (
                 messages,
                 manualModeDefault,
             )
+            if (ok) {
+                logger.info(`Session changed: ${state.sessionId}`)
+            }
         } catch (err: unknown) {
             logger.error("Failed to initialize session state", { error: err instanceof Error ? err.message : String(err) })
         }
@@ -170,26 +173,32 @@ export async function ensureSessionInitialized(
     logger: Logger,
     messages: WithParts[],
     manualModeEnabled: boolean,
-): Promise<void> {
-    if (state.sessionId === sessionId) {
-        return
+): Promise<boolean> {
+    const validId = await resolveSessionId(client, sessionId, logger, messages)
+    if (!validId) {
+        return false
+    }
+    if (state.sessionId === validId) {
+        return true
     }
 
     resetSessionState(state)
     state.manualMode = manualModeEnabled ? "active" : false
-    state.sessionId = sessionId
+    state.sessionId = validId
 
-    const isSubAgent = await isSubAgentSession(client, sessionId)
+    const isSubAgent = await isSubAgentSession(client, validId)
     state.isSubAgent = isSubAgent
 
     state.lastCompaction = findLastCompactionTimestamp(messages)
     state.currentTurn = countTurns(state, messages)
     state.nudges.turnNudgeAnchors = collectTurnNudgeAnchors(messages)
 
-    await loadAndMergePersistedState(state, sessionId, logger)
+    await loadAndMergePersistedState(state, validId, logger)
 
     const applied = applyPendingCompressionDurations(state)
     if (applied > 0) {
         await saveSessionState(state, logger)
     }
+
+    return true
 }

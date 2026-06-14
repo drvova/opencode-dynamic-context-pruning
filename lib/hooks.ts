@@ -1,7 +1,7 @@
 import type { SessionState, WithParts } from "./state"
 import type { Logger } from "./logger"
 import type { PluginConfig } from "./config"
-import type { Event, OpencodeClient, Part, ToolPart } from "@opencode-ai/sdk/v2"
+import type { Event, OpencodeClient, Part, ToolPart } from "@opencode-ai/sdk"
 import { assignMessageRefs } from "./message-ids"
 import {
     buildPriorityMap,
@@ -144,52 +144,59 @@ export function createChatMessageTransformHandler(
     hostPermissions: HostPermissionSnapshot,
 ) {
     return async (input: {}, output: { messages: WithParts[] }) => {
-        const receivedMessages = countReceivedMessages(output)
-        const messages = filterMessagesInPlace(output.messages)
-        if (messages.length !== receivedMessages) {
-            logger.warn("Skipping messages with unexpected shape during chat transform", {
-                received: receivedMessages,
-                usable: messages.length,
+        try {
+            const receivedMessages = countReceivedMessages(output)
+            const messages = filterMessagesInPlace(output.messages)
+            if (messages.length !== receivedMessages) {
+                logger.warn("Skipping messages with unexpected shape during chat transform", {
+                    received: receivedMessages,
+                    usable: messages.length,
+                })
+            }
+
+            await checkSession(client, state, logger, output.messages, config.manualMode.enabled)
+
+            syncCompressPermissionState(state, config, hostPermissions, output.messages)
+
+            if (shouldSkipForSubAgent(state, config)) return
+
+            stripHallucinations(output.messages)
+            cacheSystemPromptTokens(state, output.messages)
+            assignMessageRefs(state, output.messages)
+            syncCompressionBlocks(state, logger, output.messages)
+            syncToolCache(state, config, logger, output.messages)
+            state.toolIdList = buildToolIdList(state, output.messages)
+            toolCallPruning(state, logger, config, output.messages)
+            prune(state, logger, config, output.messages)
+            await injectExtendedSubAgentResults(
+                client,
+                state,
+                logger,
+                output.messages,
+                config.experimental.allowSubAgents,
+            )
+            const compressionPriorities = buildPriorityMap(config, state, output.messages)
+            prompts.reload()
+            injectCompressNudges(
+                state,
+                config,
+                logger,
+                output.messages,
+                prompts.getRuntimePrompts(),
+                compressionPriorities,
+            )
+            injectMessageIds(state, config, output.messages, compressionPriorities)
+            applyPendingManualTrigger(state, output.messages, logger)
+            stripStaleMetadata(output.messages)
+
+            if (state.sessionId) {
+                await logger.saveContext(state.sessionId, output.messages)
+            }
+        } catch (err: unknown) {
+            logger.error("chat transform handler error", {
+                error: err instanceof Error ? err.message : String(err),
+                stack: err instanceof Error ? err.stack : undefined,
             })
-        }
-
-        await checkSession(client, state, logger, output.messages, config.manualMode.enabled)
-
-        syncCompressPermissionState(state, config, hostPermissions, output.messages)
-
-        if (shouldSkipForSubAgent(state, config)) return
-
-        stripHallucinations(output.messages)
-        cacheSystemPromptTokens(state, output.messages)
-        assignMessageRefs(state, output.messages)
-        syncCompressionBlocks(state, logger, output.messages)
-        syncToolCache(state, config, logger, output.messages)
-        state.toolIdList = buildToolIdList(state, output.messages)
-        toolCallPruning(state, logger, config, output.messages)
-        prune(state, logger, config, output.messages)
-        await injectExtendedSubAgentResults(
-            client,
-            state,
-            logger,
-            output.messages,
-            config.experimental.allowSubAgents,
-        )
-        const compressionPriorities = buildPriorityMap(config, state, output.messages)
-        prompts.reload()
-        injectCompressNudges(
-            state,
-            config,
-            logger,
-            output.messages,
-            prompts.getRuntimePrompts(),
-            compressionPriorities,
-        )
-        injectMessageIds(state, config, output.messages, compressionPriorities)
-        applyPendingManualTrigger(state, output.messages, logger)
-        stripStaleMetadata(output.messages)
-
-        if (state.sessionId) {
-            await logger.saveContext(state.sessionId, output.messages)
         }
     }
 }
@@ -225,8 +232,9 @@ async function prepareDcpExecution(
     hostPermissions: HostPermissionSnapshot,
     input: { command: string; sessionID: string; arguments: string },
 ) {
+    if (!input.sessionID?.startsWith("ses")) return null
     const messagesResponse = await client.session.messages({
-        sessionID: input.sessionID,
+        path: { id: input.sessionID },
     })
     const messages = filterMessages(messagesResponse.data || messagesResponse)
 

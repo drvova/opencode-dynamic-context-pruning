@@ -1,5 +1,5 @@
 import * as _anthropicTokenizer from "@anthropic-ai/tokenizer"
-import type { Part } from "@opencode-ai/sdk/v2"
+import type { Part } from "@opencode-ai/sdk"
 import type { SessionState } from "./state/types"
 
 const _interop = _anthropicTokenizer as unknown as { default?: typeof _anthropicTokenizer }

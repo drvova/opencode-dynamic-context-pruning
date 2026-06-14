@@ -10,7 +10,7 @@
 import type { Logger } from "../logger"
 import type { SessionState, WithParts } from "../state"
 import type { PluginConfig } from "../config"
-import type { OpencodeClient, TextPart } from "@opencode-ai/sdk/v2"
+import type { OpencodeClient, TextPart } from "@opencode-ai/sdk"
 import { sendIgnoredMessage } from "../ui/notification"
 import { getCurrentParams } from "../token-params"
 import { buildCompressedBlockGuidance } from "../prompts/extensions/nudge"

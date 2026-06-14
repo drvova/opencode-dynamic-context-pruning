@@ -1,5 +1,5 @@
 import type { SessionState, ToolParameterEntry, ToolStatus, WithParts } from "./types"
-import type { ToolPart } from "@opencode-ai/sdk/v2"
+import type { ToolPart } from "@opencode-ai/sdk"
 import type { Logger } from "../logger"
 import type { PluginConfig } from "../config"
 import { getMessageParts } from "./utils"

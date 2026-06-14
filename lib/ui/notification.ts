@@ -1,4 +1,4 @@
-import type { OpencodeClient } from "@opencode-ai/sdk/v2"
+import type { OpencodeClient } from "@opencode-ai/sdk"
 import type { Logger } from "../logger"
 import type { SessionState } from "../state"
 import {
@@ -373,7 +373,7 @@ export async function sendIgnoredMessage(
 ): Promise<void> {
     try {
         await client.session.prompt({
-            sessionID,
+            path: { id: sessionID },
             noReply: true,
             agent: params.agent || undefined,
             model: buildModelParam(params),

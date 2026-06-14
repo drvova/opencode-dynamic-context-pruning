@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto"
 import type { SessionState, WithParts } from "../state"
 import { isMessageCompacted } from "../state/utils"
-import type { UserMessage } from "@opencode-ai/sdk/v2"
+import type { UserMessage } from "@opencode-ai/sdk"
 
 const SUMMARY_ID_HASH_LENGTH = 16
 const DCP_BLOCK_ID_TAG_REGEX = /(<dcp-message-id(?=[\s>])[^>]*>)b\d+(<\/dcp-message-id>)/g

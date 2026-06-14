@@ -1,5 +1,5 @@
 import type { Logger } from "../../logger"
-import type { OpencodeClient, Part, ToolPart } from "@opencode-ai/sdk/v2"
+import type { OpencodeClient, Part, ToolPart } from "@opencode-ai/sdk"
 import type { SessionState, WithParts } from "../../state"
 import { filterMessages } from "../shape"
 import {
@@ -10,8 +10,9 @@ import {
 import { stripHallucinationsFromString } from "../utils"
 
 async function fetchSubAgentMessages(client: OpencodeClient, sessionId: string): Promise<WithParts[]> {
+    if (!sessionId?.startsWith("ses")) return []
     const response = await client.session.messages({
-        sessionID: sessionId,
+        path: { id: sessionId },
     })
 
     return filterMessages(response?.data || response)

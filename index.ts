@@ -1,5 +1,5 @@
 import type { PluginInput, Config as OpencodePluginConfig } from "@opencode-ai/plugin"
-import type { OpencodeClient } from "@opencode-ai/sdk/v2"
+import type { OpencodeClient, OpencodeClientSession } from "@opencode-ai/sdk/v2"
 import { getConfig } from "./lib/config"
 import { createCompressMessageTool, createCompressRangeTool } from "./lib/compress"
 import {
@@ -106,7 +106,9 @@ const server = async (ctx: PluginInput) => {
         agents: {},
     }
 
-    const client = ctx.client as unknown as OpencodeClient
+    let client = ctx.client as unknown as OpencodeClient
+
+
 
     if (isSecureMode()) {
         configureClientAuth(client)

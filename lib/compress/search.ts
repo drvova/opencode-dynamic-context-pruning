@@ -1,4 +1,4 @@
-import type { OpencodeClient } from "@opencode-ai/sdk/v2"
+import type { OpencodeClient } from "@opencode-ai/sdk"
 import type { SessionState, WithParts } from "../state"
 import { formatBlockRef, parseBoundaryId, type ParsedBoundaryId } from "../message-ids"
 import { isIgnoredUserMessage } from "../messages/query"
@@ -7,8 +7,10 @@ import { countAllMessageTokens } from "../token-counting"
 import type { BoundaryReference, SearchContext, SelectionResolution } from "./types"
 
 export async function fetchSessionMessages(client: OpencodeClient, sessionId: string): Promise<WithParts[]> {
+    if (!sessionId?.startsWith("ses")) return []
+
     const response = await client.session.messages({
-        sessionID: sessionId,
+        path: { id: sessionId },
     })
 
     return filterMessages(response?.data || response)

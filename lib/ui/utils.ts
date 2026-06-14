@@ -1,5 +1,5 @@
 import type { SessionState, ToolParameterEntry, WithParts } from "../state"
-import type { AssistantMessage } from "@opencode-ai/sdk/v2"
+import type { AssistantMessage } from "@opencode-ai/sdk"
 import { countTokens } from "../token-counting"
 import { isIgnoredUserMessage } from "../messages/query"
 import { extractParameterKey } from "./param-formatters"

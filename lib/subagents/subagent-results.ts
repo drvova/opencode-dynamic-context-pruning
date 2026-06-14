@@ -1,4 +1,4 @@
-import type { Part } from "@opencode-ai/sdk/v2"
+import type { Part } from "@opencode-ai/sdk"
 import type { WithParts } from "../state"
 import { messageHasCompress } from "../messages/query"
 

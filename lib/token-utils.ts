@@ -1,5 +1,5 @@
 import type { SessionState, WithParts } from "./state/types"
-import type { AssistantMessage } from "@opencode-ai/sdk/v2"
+import type { AssistantMessage } from "@opencode-ai/sdk"
 
 function isBeforeCompaction(state: SessionState, msg: WithParts): boolean {
     if (state.lastCompaction <= 0) return false

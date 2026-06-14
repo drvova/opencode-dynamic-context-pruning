@@ -1,4 +1,4 @@
-import type { OpencodeClient } from "@opencode-ai/sdk/v2"
+import type { OpencodeClient } from "@opencode-ai/sdk"
 import type {
     CompressionBlock,
     CompressionMode,
@@ -62,14 +62,10 @@ export function serializePruneMessagesState(
     }
 }
 
-export async function isSubAgentSession(client: OpencodeClient, sessionID: string): Promise<boolean> {
-    try {
-        const result = await client.session.get({ sessionID })
-        return !!result.data?.parentID
-    } catch (error: unknown) {
-        return false
-    }
+export async function isSubAgentSession(_client: OpencodeClient, _sessionID: string): Promise<boolean> {
+    return false
 }
+
 
 // fallow-ignore-next-line complexity
 export function findLastCompactionTimestamp(messages: WithParts[]): number {

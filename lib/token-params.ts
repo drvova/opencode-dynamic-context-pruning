@@ -1,5 +1,5 @@
 import type { SessionState, WithParts } from "./state/types"
-import type { UserMessage } from "@opencode-ai/sdk/v2"
+import type { UserMessage } from "@opencode-ai/sdk"
 import type { Logger } from "./logger"
 import { getLastUserMessage } from "./messages/query"
 

@@ -49,7 +49,7 @@ import { isMessageCompacted } from "../state/utils"
 import { countTokens } from "../token-counting"
 import { extractCompletedToolOutput } from "../token-counting"
 import { getCurrentParams } from "../token-params"
-import type { AssistantMessage, OpencodeClient, Part, TextPart, ToolPart } from "@opencode-ai/sdk/v2"
+import type { AssistantMessage, OpencodeClient, Part, TextPart, ToolPart } from "@opencode-ai/sdk"
 
 export interface ContextCommandContext {
     client: OpencodeClient
